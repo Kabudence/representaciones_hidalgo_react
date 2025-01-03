@@ -1,71 +1,182 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Client from "../models/Client";
 import ClientForm from "../components/ClientForm";
 import Pagination from "../components/Pagination";
+import clientService from "../services/clientService";
 
 const Clientes = () => {
-    const [clients, setClients] = useState([
-        new Client(1, "CLI001", "Carlos Gómez", "Calle Luna 456", "987654321", "Activo"),
-        new Client(2, "CLI002", "Mariana Torres", "Av. Sol 789", "987123456", "Inactivo"),
-        // Generar más datos de prueba
-        ...Array.from({ length: 1000 }, (_, i) =>
-            new Client(i + 3, `CLI00${i + 3}`, `Cliente ${i + 3}`, `Dirección ${i + 3}`, "987654321", "Activo")
-        ),
-    ]);
-
+    const [clients, setClients] = useState([]);
     const [showModal, setShowModal] = useState(false);
     const [formType, setFormType] = useState("Agregar");
     const [currentClient, setCurrentClient] = useState(null);
     const [searchTerm, setSearchTerm] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
+    const [loading, setLoading] = useState(true);
 
     const itemsPerPage = 10;
 
-    const filteredClients = clients.filter(
-        (client) =>
-            client.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            client.codigo.toLowerCase().includes(searchTerm.toLowerCase())
+    // Se ejecuta al montar el componente, para traer clientes desde el backend
+    useEffect(() => {
+        console.log("useEffect: intentando obtener la lista de clientes...");
+        clientService.getAll()
+            .then((data) => {
+                console.log("useEffect: data recibida desde el backend:", data);
+                // Convertimos cada objeto JSON en una instancia de Client
+                const clientObjects = data.map((c) => new Client(
+                    c.id,
+                    c.codigo,
+                    c.nombre,
+                    c.direccion,
+                    c.telefono,
+                    c.estado
+                ));
+                setClients(clientObjects);
+                setLoading(false);
+            })
+            .catch((error) => {
+                console.error("Error fetching clients:", error);
+                setLoading(false);
+            });
+    }, []);
+
+    // Filtrado de clientes en base al searchTerm
+    const filteredClients = clients.filter((client) =>
+        client.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        client.codigo.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    // Cálculo de paginación
     const totalPages = Math.ceil(filteredClients.length / itemsPerPage);
-
     const paginatedClients = filteredClients.slice(
         (currentPage - 1) * itemsPerPage,
         currentPage * itemsPerPage
     );
 
+    // Abre el modal para agregar/editar
     const handleOpenModal = (type, client = null) => {
+        console.log(`handleOpenModal: se abre modal en modo '${type}'`);
         setFormType(type);
-        setCurrentClient(client || new Client(clients.length + 1, "", "", "", "", "Activo"));
+
+        // Si no hay client, significa que es 'Agregar'; si hay client, 'Editar'
+        if (client) {
+            console.log("handleOpenModal: editando cliente existente:", client);
+            setCurrentClient(client);
+        } else {
+            console.log("handleOpenModal: creando nuevo cliente por defecto");
+            setCurrentClient(new Client(null, "", "", "", "", "Activo"));
+        }
+
         setShowModal(true);
     };
 
     const handleCloseModal = () => {
+        console.log("handleCloseModal: cerrando modal");
         setShowModal(false);
     };
 
+    // Lógica que corre al dar "Guardar" en el formulario
     const handleFormSubmit = (e) => {
         e.preventDefault();
+        console.log("handleFormSubmit: validando currentClient:", currentClient);
+
         try {
             Client.validate(currentClient);
+
             if (formType === "Agregar") {
-                setClients([...clients, currentClient]);
+                // Construye un objeto sin "id"
+                const payload = {
+                    codigo: currentClient.codigo,
+                    nombre: currentClient.nombre,
+                    direccion: currentClient.direccion,
+                    telefono: currentClient.telefono,
+                    estado: currentClient.estado,
+                };
+
+                clientService.create(payload)
+                    .then((newClient) => {
+                        console.log("handleFormSubmit: cliente creado en el backend:", newClient);
+
+                        const updatedList = [
+                            ...clients,
+                            new Client(
+                                newClient.id,
+                                newClient.codigo,
+                                newClient.nombre,
+                                newClient.direccion,
+                                newClient.telefono,
+                                newClient.estado
+                            ),
+                        ];
+                        setClients(updatedList);
+                        handleCloseModal();
+                    })
+                    .catch((error) => {
+                        console.error("Error creating client:", error);
+                    });
             } else {
-                setClients(clients.map((cli) => (cli.id === currentClient.id ? currentClient : cli)));
+                // Editar: se asume que currentClient sí tiene un 'id'
+                console.log("handleFormSubmit: editando cliente con id:", currentClient.id);
+
+                // Para PUT, normalmente pasas todo, salvo que tu schema se queje del id.
+                // Si tu schema 'id' es dump_only, no lo incluyas:
+                const payload = {
+                    codigo: currentClient.codigo,
+                    nombre: currentClient.nombre,
+                    direccion: currentClient.direccion,
+                    telefono: currentClient.telefono,
+                    estado: currentClient.estado,
+                };
+
+                clientService.update(currentClient.id, payload)
+                    .then((updatedClient) => {
+                        console.log("handleFormSubmit: cliente actualizado en el backend:", updatedClient);
+                        const updatedList = clients.map((cli) =>
+                            cli.id === currentClient.id
+                                ? new Client(
+                                    updatedClient.id,
+                                    updatedClient.codigo,
+                                    updatedClient.nombre,
+                                    updatedClient.direccion,
+                                    updatedClient.telefono,
+                                    updatedClient.estado
+                                )
+                                : cli
+                        );
+                        setClients(updatedList);
+                        handleCloseModal();
+                    })
+                    .catch((error) => {
+                        console.error("Error updating client:", error);
+                    });
             }
-            handleCloseModal();
         } catch (error) {
             alert(error.message);
         }
     };
 
+    // Eliminar un cliente
     const handleDelete = (id) => {
-        setClients(clients.filter((client) => client.id !== id));
+        console.log("handleDelete: intentando eliminar cliente con id:", id);
+        clientService.delete(id)
+            .then(() => {
+                console.log("handleDelete: cliente eliminado. Eliminando de la lista local...");
+                setClients(clients.filter((client) => client.id !== id));
+            })
+            .catch((error) => {
+                console.error("Error deleting client:", error);
+            });
     };
 
+    // Cambio de página en la paginación
     const handlePageChange = (newPage) => {
+        console.log("handlePageChange: cambiando página a:", newPage);
         setCurrentPage(newPage);
     };
+
+    // Mostrar mientras carga
+    if (loading) {
+        return <div>Cargando clientes...</div>;
+    }
 
     return (
         <div style={styles.container}>
@@ -82,6 +193,7 @@ const Clientes = () => {
                     Agregar Cliente
                 </button>
             </div>
+
             <table style={styles.table}>
                 <thead>
                 <tr style={styles.tableHeader}>
@@ -111,10 +223,16 @@ const Clientes = () => {
                             {client.estado}
                         </td>
                         <td style={styles.tableCell}>
-                            <button onClick={() => handleOpenModal("Editar", client)} style={styles.editButton}>
+                            <button
+                                onClick={() => handleOpenModal("Editar", client)}
+                                style={styles.editButton}
+                            >
                                 Editar
                             </button>
-                            <button onClick={() => handleDelete(client.id)} style={styles.deleteButton}>
+                            <button
+                                onClick={() => handleDelete(client.id)}
+                                style={styles.deleteButton}
+                            >
                                 Eliminar
                             </button>
                         </td>
@@ -122,11 +240,13 @@ const Clientes = () => {
                 ))}
                 </tbody>
             </table>
+
             <Pagination
                 totalPages={totalPages}
                 currentPage={currentPage}
                 onPageChange={handlePageChange}
             />
+
             {showModal && (
                 <div style={styles.modalOverlay}>
                     <div style={styles.modal}>
