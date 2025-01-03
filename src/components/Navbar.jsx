@@ -49,7 +49,7 @@ const Navbar = () => {
     return (
         <>
             <nav style={styles.navbar}>
-                <div style={styles.logo}>HIDALGO</div>
+                <div style={styles.logo}>ICM</div>
                 <ul style={styles.links}>
                     <li><a href="/" style={styles.linkItem}>Home</a></li>
                     <li><a href="/clientes" style={styles.linkItem}>Clientes</a></li>
