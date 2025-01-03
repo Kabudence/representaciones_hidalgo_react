@@ -1,0 +1,12 @@
+/* index.css */
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=PT+Sans+Narrow:wght@400;700&display=swap');
+
+body {
+    font-family: 'Open Sans', sans-serif;
+}
+.navbar-separator {
+    border-bottom: 2px solid #ccc; /* Línea gris clara */
+    margin-bottom: 10px; /* Espaciado debajo de la línea */
+}

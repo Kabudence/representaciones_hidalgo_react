@@ -1,0 +1,41 @@
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=PT+Sans+Narrow:wght@400;700&display=swap');
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: Arial, sans-serif;
+}
+/* index.css */
+
+body {
+  font-family: 'Open Sans', sans-serif;
+}
+
+@media (max-width: 1024px) {
+  h1 {
+    font-size: 2.5rem; /* Ajusta el tamaño en pantallas medianas */
+  }
+  h2 {
+    font-size: 1.2rem; /* Ajusta subtítulos en pantallas medianas */
+  }
+}
+
+@media (max-width: 768px) {
+  h1 {
+    font-size: 2rem; /* Ajusta el tamaño en pantallas pequeñas */
+  }
+  h2 {
+    font-size: 1rem; /* Ajusta subtítulos en pantallas pequeñas */
+  }
+}
+
+@media (max-width: 480px) {
+  h1 {
+    font-size: 1.5rem; /* Ajusta el tamaño en pantallas móviles */
+  }
+  h2 {
+    font-size: 0.9rem; /* Ajusta subtítulos en pantallas móviles */
+  }
+}
