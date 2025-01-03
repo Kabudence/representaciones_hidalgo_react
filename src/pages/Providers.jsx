@@ -1,74 +1,185 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Provider from "../models/Provider";
-import ProviderForm from "../components/ProviderForm.jsx";
+import ProviderForm from "../components/ProviderForm";
 import Pagination from "../components/Pagination";
+import providerService from "../services/providerService";
 
 const Providers = () => {
-    const [providers, setProviders] = useState([
-        new Provider(1, "PROV001", "Proveedor 1", "Av. Principal 123", "987654321", "prov1@example.com", "Activo"),
-        new Provider(2, "PROV002", "Proveedor 2", "Av. Secundaria 456", "987123456", "prov2@example.com", "Inactivo"),
-        ...Array.from({ length: 100 }, (_, i) =>
-            new Provider(i + 3, `PROV00${i + 3}`, `Proveedor ${i + 3}`, `Calle ${i + 3}`, "987654321", "Activo")
-        ),
-    ]);
-
+    const [providers, setProviders] = useState([]);
     const [showModal, setShowModal] = useState(false);
     const [formType, setFormType] = useState("Agregar");
     const [currentProvider, setCurrentProvider] = useState(null);
     const [searchTerm, setSearchTerm] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
+    const [loading, setLoading] = useState(true);
 
     const itemsPerPage = 10;
 
+    // useEffect para cargar proveedores desde el backend
+    useEffect(() => {
+        console.log("useEffect: intentando obtener la lista de proveedores...");
+        providerService
+            .getAll()
+            .then((data) => {
+                console.log("Proveedores recibidos del backend:", data);
+                // Convertir cada objeto en una instancia de Provider (opcional)
+                const providerObjects = data.map(
+                    (p) =>
+                        new Provider(
+                            p.id,
+                            p.codigo,
+                            p.nombre,
+                            p.direccion,
+                            p.telefono,
+                            p.correo,
+                            p.estado
+                        )
+                );
+                setProviders(providerObjects);
+                setLoading(false);
+            })
+            .catch((error) => {
+                console.error("Error fetching providers:", error);
+                setLoading(false);
+            });
+    }, []);
+
+    // Filtrado de búsqueda
     const filteredProviders = providers.filter(
         (provider) =>
             provider.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
             provider.codigo.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    // Cálculo de paginación
     const totalPages = Math.ceil(filteredProviders.length / itemsPerPage);
-
     const paginatedProviders = filteredProviders.slice(
         (currentPage - 1) * itemsPerPage,
         currentPage * itemsPerPage
     );
 
+    // Abre modal para Agregar o Editar
     const handleOpenModal = (type, provider = null) => {
+        console.log(`handleOpenModal: modo '${type}'`);
         setFormType(type);
-        setCurrentProvider(
-            provider || new Provider(providers.length + 1, "", "", "", "", "", "Activo")
-        );
+
+        if (provider) {
+            console.log("Editando proveedor existente:", provider);
+            setCurrentProvider(provider);
+        } else {
+            console.log("Creando nuevo proveedor");
+            // id = null y estado por defecto "Activo"
+            setCurrentProvider(new Provider(null, "", "", "", "", "", "Activo"));
+        }
+
         setShowModal(true);
     };
 
     const handleCloseModal = () => {
+        console.log("Cerrando modal");
         setShowModal(false);
     };
 
+    // Guardar (Agregar / Editar)
     const handleFormSubmit = (e) => {
         e.preventDefault();
+        console.log("handleFormSubmit: validando currentProvider:", currentProvider);
+
         try {
-            Provider.validate(currentProvider); // Validar datos
+            // Validar campos requeridos en front
+            Provider.validate(currentProvider);
+
+            // Construimos un payload sin "id" (si tu schema lo tiene dump_only)
+            const payload = {
+                codigo: currentProvider.codigo,
+                nombre: currentProvider.nombre,
+                direccion: currentProvider.direccion,
+                telefono: currentProvider.telefono,
+                correo: currentProvider.correo,
+                contacto: currentProvider.contacto, // si tu schema lo define
+                estado: currentProvider.estado,
+            };
+
             if (formType === "Agregar") {
-                setProviders([...providers, currentProvider]);
+                console.log("Agregando nuevo proveedor (POST)...");
+                providerService
+                    .create(payload)
+                    .then((newProv) => {
+                        console.log("Proveedor creado en backend:", newProv);
+                        // Agregar a la lista local
+                        const updatedList = [
+                            ...providers,
+                            new Provider(
+                                newProv.id,
+                                newProv.codigo,
+                                newProv.nombre,
+                                newProv.direccion,
+                                newProv.telefono,
+                                newProv.correo,
+                                newProv.estado
+                            ),
+                        ];
+                        setProviders(updatedList);
+                        handleCloseModal();
+                    })
+                    .catch((error) => {
+                        console.error("Error creating provider:", error);
+                    });
             } else {
-                setProviders(
-                    providers.map((prov) => (prov.id === currentProvider.id ? currentProvider : prov))
-                );
+                console.log("Editando proveedor con id:", currentProvider.id);
+                providerService
+                    .update(currentProvider.id, payload)
+                    .then((updatedProv) => {
+                        console.log("Proveedor actualizado en backend:", updatedProv);
+                        const updatedList = providers.map((prov) =>
+                            prov.id === currentProvider.id
+                                ? new Provider(
+                                    updatedProv.id,
+                                    updatedProv.codigo,
+                                    updatedProv.nombre,
+                                    updatedProv.direccion,
+                                    updatedProv.telefono,
+                                    updatedProv.correo,
+                                    updatedProv.estado
+                                )
+                                : prov
+                        );
+                        setProviders(updatedList);
+                        handleCloseModal();
+                    })
+                    .catch((error) => {
+                        console.error("Error updating provider:", error);
+                    });
             }
-            handleCloseModal();
         } catch (error) {
             alert(error.message);
         }
     };
 
+    // Eliminar
     const handleDelete = (id) => {
-        setProviders(providers.filter((provider) => provider.id !== id));
+        console.log("Eliminando proveedor con id:", id);
+        providerService
+            .delete(id)
+            .then((res) => {
+                console.log("Proveedor eliminado en backend:", res);
+                // Actualizar lista local
+                setProviders(providers.filter((prov) => prov.id !== id));
+            })
+            .catch((error) => {
+                console.error("Error deleting provider:", error);
+            });
     };
 
+    // Cambio de página
     const handlePageChange = (newPage) => {
+        console.log("Cambiando a página:", newPage);
         setCurrentPage(newPage);
     };
+
+    if (loading) {
+        return <div>Cargando proveedores...</div>;
+    }
 
     return (
         <div style={styles.container}>
@@ -85,6 +196,7 @@ const Providers = () => {
                     Agregar Proveedor
                 </button>
             </div>
+
             <table style={styles.table}>
                 <thead>
                 <tr style={styles.tableHeader}>
@@ -110,7 +222,8 @@ const Providers = () => {
                         <td
                             style={{
                                 ...styles.tableCell,
-                                ...(provider.estado === "Activo" ? styles.active : styles.inactive),
+                                color: provider.estado === "Activo" ? "green" : "red",
+                                fontWeight: "bold",
                             }}
                         >
                             {provider.estado}
@@ -133,11 +246,13 @@ const Providers = () => {
                 ))}
                 </tbody>
             </table>
+
             <Pagination
                 totalPages={totalPages}
                 currentPage={currentPage}
                 onPageChange={handlePageChange}
             />
+
             {showModal && (
                 <div style={styles.modalOverlay}>
                     <div style={styles.modal}>
@@ -155,6 +270,7 @@ const Providers = () => {
     );
 };
 
+// Estilos
 const styles = {
     container: {
         backgroundColor: "#f2f2f2",
@@ -211,14 +327,6 @@ const styles = {
         padding: "15px 10px",
         textAlign: "left",
     },
-    active: {
-        color: "green",
-        fontWeight: "bold",
-    },
-    inactive: {
-        color: "red",
-        fontWeight: "bold",
-    },
     editButton: {
         backgroundColor: "#ffc107",
         color: "black",
@@ -227,6 +335,7 @@ const styles = {
         cursor: "pointer",
         borderRadius: "5px",
         marginRight: "5px",
+        fontWeight: "bold",
     },
     deleteButton: {
         backgroundColor: "#dc3545",
@@ -235,6 +344,7 @@ const styles = {
         padding: "8px 16px",
         cursor: "pointer",
         borderRadius: "5px",
+        fontWeight: "bold",
     },
     modalOverlay: {
         position: "fixed",
