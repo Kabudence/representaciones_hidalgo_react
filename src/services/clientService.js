@@ -1,3 +1,4 @@
+// clientService actualizado para coincidir con el backend
 import api from "./api";
 
 const clientService = {

@@ -15,21 +15,20 @@ const Clientes = () => {
 
     const itemsPerPage = 10;
 
-    // Se ejecuta al montar el componente, para traer clientes desde el backend
     useEffect(() => {
-        console.log("useEffect: intentando obtener la lista de clientes...");
         clientService.getAll()
             .then((data) => {
-                console.log("useEffect: data recibida desde el backend:", data);
-                // Convertimos cada objeto JSON en una instancia de Client
-                const clientObjects = data.map((c) => new Client(
-                    c.id,
-                    c.codigo,
-                    c.nombre,
-                    c.direccion,
-                    c.telefono,
-                    c.estado
-                ));
+                // Convertimos los datos en instancias de la clase Client
+                const clientObjects = data.map((c) =>
+                    new Client(
+                        c.idcliente,
+                        c.tdoc,
+                        c.nomcliente,
+                        c.direccion,
+                        c.telefono,
+                        c.estado
+                    )
+                );
                 setClients(clientObjects);
                 setLoading(false);
             })
@@ -39,141 +38,107 @@ const Clientes = () => {
             });
     }, []);
 
-    // Filtrado de clientes en base al searchTerm
-    const filteredClients = clients.filter((client) =>
-        client.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        client.codigo.toLowerCase().includes(searchTerm.toLowerCase())
+    const filteredClients = clients.filter(
+        (client) =>
+            client.nomcliente.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            client.idcliente.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    // Cálculo de paginación
     const totalPages = Math.ceil(filteredClients.length / itemsPerPage);
     const paginatedClients = filteredClients.slice(
         (currentPage - 1) * itemsPerPage,
         currentPage * itemsPerPage
     );
 
-    // Abre el modal para agregar/editar
+    // Abre el modal para Agregar o Editar
     const handleOpenModal = (type, client = null) => {
-        console.log(`handleOpenModal: se abre modal en modo '${type}'`);
         setFormType(type);
-
-        // Si no hay client, significa que es 'Agregar'; si hay client, 'Editar'
-        if (client) {
-            console.log("handleOpenModal: editando cliente existente:", client);
-            setCurrentClient(client);
-        } else {
-            console.log("handleOpenModal: creando nuevo cliente por defecto");
-            setCurrentClient(new Client(null, "", "", "", "", "Activo"));
-        }
-
+        // Si no hay cliente (Agregar), por defecto 'estado' = "1" => Activo
+        setCurrentClient(client || new Client("", "", "", "", "", "1"));
         setShowModal(true);
     };
 
     const handleCloseModal = () => {
-        console.log("handleCloseModal: cerrando modal");
         setShowModal(false);
     };
 
-    // Lógica que corre al dar "Guardar" en el formulario
-    const handleFormSubmit = (e) => {
-        e.preventDefault();
-        console.log("handleFormSubmit: validando currentClient:", currentClient);
-
+    // Recibe el objeto clientData con estado ya convertido a número en ClientForm
+    const handleFormSubmit = (clientData) => {
         try {
-            Client.validate(currentClient);
+            // Validación (throws si falta algún dato)
+            Client.validate(clientData);
+
+            // Construimos el payload que se enviará al backend
+            const payload = {
+                idcliente: clientData.idcliente,
+                tdoc: clientData.tdoc,
+                nomcliente: clientData.nomcliente,
+                direccion: clientData.direccion,
+                telefono: clientData.telefono,
+                estado: clientData.estado, // <-- ya es un número
+            };
 
             if (formType === "Agregar") {
-                // Construye un objeto sin "id"
-                const payload = {
-                    codigo: currentClient.codigo,
-                    nombre: currentClient.nombre,
-                    direccion: currentClient.direccion,
-                    telefono: currentClient.telefono,
-                    estado: currentClient.estado,
-                };
-
-                clientService.create(payload)
+                // Crear nuevo
+                clientService
+                    .create(payload)
                     .then((newClient) => {
-                        console.log("handleFormSubmit: cliente creado en el backend:", newClient);
-
-                        const updatedList = [
+                        // Actualiza el estado local con el nuevo cliente
+                        setClients([
                             ...clients,
                             new Client(
-                                newClient.id,
-                                newClient.codigo,
-                                newClient.nombre,
+                                newClient.idcliente,
+                                newClient.tdoc,
+                                newClient.nomcliente,
                                 newClient.direccion,
                                 newClient.telefono,
                                 newClient.estado
                             ),
-                        ];
-                        setClients(updatedList);
+                        ]);
                         handleCloseModal();
                     })
-                    .catch((error) => {
-                        console.error("Error creating client:", error);
-                    });
+                    .catch((error) => console.error("Error creating client:", error));
             } else {
-                // Editar: se asume que currentClient sí tiene un 'id'
-                console.log("handleFormSubmit: editando cliente con id:", currentClient.id);
-
-                // Para PUT, normalmente pasas todo, salvo que tu schema se queje del id.
-                // Si tu schema 'id' es dump_only, no lo incluyas:
-                const payload = {
-                    codigo: currentClient.codigo,
-                    nombre: currentClient.nombre,
-                    direccion: currentClient.direccion,
-                    telefono: currentClient.telefono,
-                    estado: currentClient.estado,
-                };
-
-                clientService.update(currentClient.id, payload)
+                // Editar existente
+                clientService
+                    .update(clientData.idcliente, payload)
                     .then((updatedClient) => {
-                        console.log("handleFormSubmit: cliente actualizado en el backend:", updatedClient);
-                        const updatedList = clients.map((cli) =>
-                            cli.id === currentClient.id
-                                ? new Client(
-                                    updatedClient.id,
-                                    updatedClient.codigo,
-                                    updatedClient.nombre,
-                                    updatedClient.direccion,
-                                    updatedClient.telefono,
-                                    updatedClient.estado
-                                )
-                                : cli
+                        setClients(
+                            clients.map((cli) =>
+                                cli.idcliente === clientData.idcliente
+                                    ? new Client(
+                                        updatedClient.idcliente,
+                                        updatedClient.tdoc,
+                                        updatedClient.nomcliente,
+                                        updatedClient.direccion,
+                                        updatedClient.telefono,
+                                        updatedClient.estado
+                                    )
+                                    : cli
+                            )
                         );
-                        setClients(updatedList);
                         handleCloseModal();
                     })
-                    .catch((error) => {
-                        console.error("Error updating client:", error);
-                    });
+                    .catch((error) => console.error("Error updating client:", error));
             }
         } catch (error) {
             alert(error.message);
         }
     };
 
-    // Eliminar un cliente
     const handleDelete = (id) => {
-        console.log("handleDelete: intentando eliminar cliente con id:", id);
-        clientService.delete(id)
+        clientService
+            .delete(id)
             .then(() => {
-                console.log("handleDelete: cliente eliminado. Eliminando de la lista local...");
-                setClients(clients.filter((client) => client.id !== id));
+                setClients(clients.filter((client) => client.idcliente !== id));
             })
-            .catch((error) => {
-                console.error("Error deleting client:", error);
-            });
+            .catch((error) => console.error("Error deleting client:", error));
     };
 
-    // Cambio de página en la paginación
     const handlePageChange = (newPage) => {
-        console.log("handlePageChange: cambiando página a:", newPage);
         setCurrentPage(newPage);
     };
 
-    // Mostrar mientras carga
     if (loading) {
         return <div>Cargando clientes...</div>;
     }
@@ -198,7 +163,7 @@ const Clientes = () => {
                 <thead>
                 <tr style={styles.tableHeader}>
                     <th>ID</th>
-                    <th>Código</th>
+                    <th>Documento</th>
                     <th>Nombre</th>
                     <th>Dirección</th>
                     <th>Teléfono</th>
@@ -208,19 +173,19 @@ const Clientes = () => {
                 </thead>
                 <tbody>
                 {paginatedClients.map((client) => (
-                    <tr key={client.id} style={styles.tableRow}>
-                        <td style={styles.tableCell}>{client.id}</td>
-                        <td style={styles.tableCell}>{client.codigo}</td>
-                        <td style={styles.tableCell}>{client.nombre}</td>
+                    <tr key={client.idcliente} style={styles.tableRow}>
+                        <td style={styles.tableCell}>{client.idcliente}</td>
+                        <td style={styles.tableCell}>{client.tdoc}</td>
+                        <td style={styles.tableCell}>{client.nomcliente}</td>
                         <td style={styles.tableCell}>{client.direccion}</td>
                         <td style={styles.tableCell}>{client.telefono}</td>
                         <td
                             style={{
                                 ...styles.tableCell,
-                                color: client.estado === "Activo" ? "green" : "red",
+                                color: client.estado === "1" ? "green" : "red",
                             }}
                         >
-                            {client.estado}
+                            {client.estado === "1" ? "Activo" : "Inactivo"}
                         </td>
                         <td style={styles.tableCell}>
                             <button
@@ -230,7 +195,7 @@ const Clientes = () => {
                                 Editar
                             </button>
                             <button
-                                onClick={() => handleDelete(client.id)}
+                                onClick={() => handleDelete(client.idcliente)}
                                 style={styles.deleteButton}
                             >
                                 Eliminar
@@ -253,7 +218,6 @@ const Clientes = () => {
                         <h2>{formType} Cliente</h2>
                         <ClientForm
                             client={currentClient}
-                            setClient={setCurrentClient}
                             onSubmit={handleFormSubmit}
                             onCancel={handleCloseModal}
                         />

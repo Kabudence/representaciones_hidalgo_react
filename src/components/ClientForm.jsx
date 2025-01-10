@@ -1,19 +1,53 @@
 import React from "react";
+import PropTypes from "prop-types";
 
-const ClientForm = ({ client, setClient, onSubmit, onCancel }) => {
+const estadoOptions = [
+    { value: "1", label: "Activo" },
+    { value: "2", label: "Inactivo" },
+];
+
+const ClientForm = ({ client, onSubmit, onCancel }) => {
+    const [localClient, setLocalClient] = React.useState(client);
+
     const handleChange = (e) => {
         const { name, value } = e.target;
-        setClient({ ...client, [name]: value });
+        setLocalClient({ ...localClient, [name]: value });
+    };
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+
+        // Convertimos 'estado' a número
+        const transformedClient = {
+            ...localClient,
+        };
+
+        if (onSubmit && typeof onSubmit === "function") {
+            onSubmit(transformedClient);
+        } else {
+            console.error("onSubmit no está definido o no es una función.");
+        }
     };
 
     return (
-        <form onSubmit={onSubmit} style={styles.form}>
+        <form onSubmit={handleSubmit} style={styles.form}>
             <div style={styles.formGroup}>
-                <label style={styles.label}>Código:</label>
+                <label style={styles.label}>ID Cliente:</label>
                 <input
                     type="text"
-                    name="codigo"
-                    value={client.codigo}
+                    name="idcliente"
+                    value={localClient.idcliente}
+                    onChange={handleChange}
+                    style={styles.input}
+                    required
+                />
+            </div>
+            <div style={styles.formGroup}>
+                <label style={styles.label}>Tipo Documento:</label>
+                <input
+                    type="text"
+                    name="tdoc"
+                    value={localClient.tdoc}
                     onChange={handleChange}
                     style={styles.input}
                     required
@@ -23,8 +57,8 @@ const ClientForm = ({ client, setClient, onSubmit, onCancel }) => {
                 <label style={styles.label}>Nombre:</label>
                 <input
                     type="text"
-                    name="nombre"
-                    value={client.nombre}
+                    name="nomcliente"
+                    value={localClient.nomcliente}
                     onChange={handleChange}
                     style={styles.input}
                     required
@@ -35,7 +69,7 @@ const ClientForm = ({ client, setClient, onSubmit, onCancel }) => {
                 <input
                     type="text"
                     name="direccion"
-                    value={client.direccion}
+                    value={localClient.direccion}
                     onChange={handleChange}
                     style={styles.input}
                     required
@@ -46,7 +80,7 @@ const ClientForm = ({ client, setClient, onSubmit, onCancel }) => {
                 <input
                     type="text"
                     name="telefono"
-                    value={client.telefono}
+                    value={localClient.telefono}
                     onChange={handleChange}
                     style={styles.input}
                     required
@@ -56,25 +90,45 @@ const ClientForm = ({ client, setClient, onSubmit, onCancel }) => {
                 <label style={styles.label}>Estado:</label>
                 <select
                     name="estado"
-                    value={client.estado}
+                    value={localClient.estado}
                     onChange={handleChange}
                     style={styles.select}
                     required
                 >
-                    <option value="Activo">Activo</option>
-                    <option value="Inactivo">Inactivo</option>
+                    {estadoOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                            {option.label}
+                        </option>
+                    ))}
                 </select>
             </div>
             <div style={styles.buttonGroup}>
                 <button type="submit" style={styles.saveButton}>
                     Guardar
                 </button>
-                <button type="button" onClick={onCancel} style={styles.cancelButton}>
+                <button
+                    type="button"
+                    onClick={onCancel}
+                    style={styles.cancelButton}
+                >
                     Cancelar
                 </button>
             </div>
         </form>
     );
+};
+
+ClientForm.propTypes = {
+    client: PropTypes.shape({
+        idcliente: PropTypes.string.isRequired,
+        tdoc: PropTypes.string.isRequired,
+        nomcliente: PropTypes.string.isRequired,
+        direccion: PropTypes.string.isRequired,
+        telefono: PropTypes.string.isRequired,
+        estado: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+    }).isRequired,
+    onSubmit: PropTypes.func.isRequired,
+    onCancel: PropTypes.func.isRequired,
 };
 
 const styles = {
