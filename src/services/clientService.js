@@ -19,7 +19,13 @@ const clientService = {
         return response.data;
     },
     delete: async (id) => {
-        await api.delete(`/clientes/${id}`);
+        try {
+            const response = await api.delete(`/clientes/${id}`);
+            return response.data; // Retorna la confirmación de eliminación
+        } catch (error) {
+            console.error('Error deleting clientes:', error);
+            throw error;
+        }
     },
 };
 
