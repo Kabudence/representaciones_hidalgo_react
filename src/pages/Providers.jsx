@@ -1,3 +1,4 @@
+// Providers.jsx
 import { useState, useEffect } from "react";
 import Provider from "../models/Provider";
 import ProviderForm from "../components/ProviderForm";
@@ -15,22 +16,19 @@ const Providers = () => {
 
     const itemsPerPage = 10;
 
-    // useEffect para cargar proveedores desde el backend
     useEffect(() => {
-        console.log("useEffect: intentando obtener la lista de proveedores...");
         providerService
             .getAll()
             .then((data) => {
-                console.log("Proveedores recibidos del backend:", data);
-                // Convertir cada objeto en una instancia de Provider (opcional)
                 const providerObjects = data.map(
                     (p) =>
                         new Provider(
-                            p.id,
-                            p.codigo,
-                            p.nombre,
+                            p.ruc,
+                            p.nomproveedor,
                             p.direccion,
                             p.telefono,
+                            p.celular,
+                            p.contacto,
                             p.correo,
                             p.estado
                         )
@@ -44,136 +42,105 @@ const Providers = () => {
             });
     }, []);
 
-    // Filtrado de búsqueda
     const filteredProviders = providers.filter(
         (provider) =>
-            provider.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            provider.codigo.toLowerCase().includes(searchTerm.toLowerCase())
+            provider.nomproveedor.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            provider.ruc.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    // Cálculo de paginación
     const totalPages = Math.ceil(filteredProviders.length / itemsPerPage);
     const paginatedProviders = filteredProviders.slice(
         (currentPage - 1) * itemsPerPage,
         currentPage * itemsPerPage
     );
 
-    // Abre modal para Agregar o Editar
     const handleOpenModal = (type, provider = null) => {
-        console.log(`handleOpenModal: modo '${type}'`);
         setFormType(type);
-
-        if (provider) {
-            console.log("Editando proveedor existente:", provider);
-            setCurrentProvider(provider);
-        } else {
-            console.log("Creando nuevo proveedor");
-            // id = null y estado por defecto "Activo"
-            setCurrentProvider(new Provider(null, "", "", "", "", "", "Activo"));
-        }
-
+        setCurrentProvider(
+            provider ||
+            new Provider("", "", "", "", "", "", "", "1") // Estado por defecto "1"
+        );
         setShowModal(true);
     };
 
     const handleCloseModal = () => {
-        console.log("Cerrando modal");
         setShowModal(false);
     };
 
-    // Guardar (Agregar / Editar)
-    const handleFormSubmit = (e) => {
-        e.preventDefault();
-        console.log("handleFormSubmit: validando currentProvider:", currentProvider);
-
+    const handleFormSubmit = (providerData) => {
         try {
-            // Validar campos requeridos en front
-            Provider.validate(currentProvider);
+            Provider.validate(providerData);
 
-            // Construimos un payload sin "id" (si tu schema lo tiene dump_only)
             const payload = {
-                codigo: currentProvider.codigo,
-                nombre: currentProvider.nombre,
-                direccion: currentProvider.direccion,
-                telefono: currentProvider.telefono,
-                correo: currentProvider.correo,
-                contacto: currentProvider.contacto, // si tu schema lo define
-                estado: currentProvider.estado,
+                ruc: providerData.ruc,
+                nomproveedor: providerData.nomproveedor,
+                direccion: providerData.direccion,
+                telefono: providerData.telefono,
+                celular: providerData.celular,
+                contacto: providerData.contacto,
+                correo: providerData.correo,
+                estado: providerData.estado, // Estado ya numérico
             };
 
             if (formType === "Agregar") {
-                console.log("Agregando nuevo proveedor (POST)...");
                 providerService
                     .create(payload)
-                    .then((newProv) => {
-                        console.log("Proveedor creado en backend:", newProv);
-                        // Agregar a la lista local
-                        const updatedList = [
+                    .then((newProvider) => {
+                        setProviders([
                             ...providers,
                             new Provider(
-                                newProv.id,
-                                newProv.codigo,
-                                newProv.nombre,
-                                newProv.direccion,
-                                newProv.telefono,
-                                newProv.correo,
-                                newProv.estado
+                                newProvider.ruc,
+                                newProvider.nomproveedor,
+                                newProvider.direccion,
+                                newProvider.telefono,
+                                newProvider.celular,
+                                newProvider.contacto,
+                                newProvider.correo,
+                                newProvider.estado
                             ),
-                        ];
-                        setProviders(updatedList);
+                        ]);
                         handleCloseModal();
                     })
-                    .catch((error) => {
-                        console.error("Error creating provider:", error);
-                    });
+                    .catch((error) => console.error("Error creating provider:", error));
             } else {
-                console.log("Editando proveedor con id:", currentProvider.id);
                 providerService
-                    .update(currentProvider.id, payload)
-                    .then((updatedProv) => {
-                        console.log("Proveedor actualizado en backend:", updatedProv);
-                        const updatedList = providers.map((prov) =>
-                            prov.id === currentProvider.id
-                                ? new Provider(
-                                    updatedProv.id,
-                                    updatedProv.codigo,
-                                    updatedProv.nombre,
-                                    updatedProv.direccion,
-                                    updatedProv.telefono,
-                                    updatedProv.correo,
-                                    updatedProv.estado
-                                )
-                                : prov
+                    .update(providerData.ruc, payload)
+                    .then((updatedProvider) => {
+                        setProviders(
+                            providers.map((prov) =>
+                                prov.ruc === providerData.ruc
+                                    ? new Provider(
+                                        updatedProvider.ruc,
+                                        updatedProvider.nomproveedor,
+                                        updatedProvider.direccion,
+                                        updatedProvider.telefono,
+                                        updatedProvider.celular,
+                                        updatedProvider.contacto,
+                                        updatedProvider.correo,
+                                        updatedProvider.estado
+                                    )
+                                    : prov
+                            )
                         );
-                        setProviders(updatedList);
                         handleCloseModal();
                     })
-                    .catch((error) => {
-                        console.error("Error updating provider:", error);
-                    });
+                    .catch((error) => console.error("Error updating provider:", error));
             }
         } catch (error) {
             alert(error.message);
         }
     };
 
-    // Eliminar
-    const handleDelete = (id) => {
-        console.log("Eliminando proveedor con id:", id);
+    const handleDelete = (ruc) => {
         providerService
-            .delete(id)
-            .then((res) => {
-                console.log("Proveedor eliminado en backend:", res);
-                // Actualizar lista local
-                setProviders(providers.filter((prov) => prov.id !== id));
+            .delete(ruc)
+            .then(() => {
+                setProviders(providers.filter((prov) => prov.ruc !== ruc));
             })
-            .catch((error) => {
-                console.error("Error deleting provider:", error);
-            });
+            .catch((error) => console.error("Error deleting provider:", error));
     };
 
-    // Cambio de página
     const handlePageChange = (newPage) => {
-        console.log("Cambiando a página:", newPage);
         setCurrentPage(newPage);
     };
 
@@ -192,7 +159,10 @@ const Providers = () => {
                     onChange={(e) => setSearchTerm(e.target.value)}
                     style={styles.searchInput}
                 />
-                <button onClick={() => handleOpenModal("Agregar")} style={styles.addButton}>
+                <button
+                    onClick={() => handleOpenModal("Agregar")}
+                    style={styles.addButton}
+                >
                     Agregar Proveedor
                 </button>
             </div>
@@ -200,11 +170,12 @@ const Providers = () => {
             <table style={styles.table}>
                 <thead>
                 <tr style={styles.tableHeader}>
-                    <th>ID</th>
-                    <th>Código</th>
+                    <th>RUC</th>
                     <th>Nombre</th>
                     <th>Dirección</th>
                     <th>Teléfono</th>
+                    <th>Celular</th>
+                    <th>Contacto</th>
                     <th>Correo</th>
                     <th>Estado</th>
                     <th>Acciones</th>
@@ -212,21 +183,21 @@ const Providers = () => {
                 </thead>
                 <tbody>
                 {paginatedProviders.map((provider) => (
-                    <tr key={provider.id} style={styles.tableRow}>
-                        <td style={styles.tableCell}>{provider.id}</td>
-                        <td style={styles.tableCell}>{provider.codigo}</td>
-                        <td style={styles.tableCell}>{provider.nombre}</td>
+                    <tr key={provider.ruc} style={styles.tableRow}>
+                        <td style={styles.tableCell}>{provider.ruc}</td>
+                        <td style={styles.tableCell}>{provider.nomproveedor}</td>
                         <td style={styles.tableCell}>{provider.direccion}</td>
                         <td style={styles.tableCell}>{provider.telefono}</td>
+                        <td style={styles.tableCell}>{provider.celular}</td>
+                        <td style={styles.tableCell}>{provider.contacto}</td>
                         <td style={styles.tableCell}>{provider.correo}</td>
                         <td
                             style={{
                                 ...styles.tableCell,
-                                color: provider.estado === "Activo" ? "green" : "red",
-                                fontWeight: "bold",
+                                color: provider.estado === "1" ? "green" : "red",
                             }}
                         >
-                            {provider.estado}
+                            {provider.estado === "1" ? "Activo" : "Inactivo"}
                         </td>
                         <td style={styles.tableCell}>
                             <button
@@ -236,7 +207,7 @@ const Providers = () => {
                                 Editar
                             </button>
                             <button
-                                onClick={() => handleDelete(provider.id)}
+                                onClick={() => handleDelete(provider.ruc)}
                                 style={styles.deleteButton}
                             >
                                 Eliminar
@@ -259,7 +230,6 @@ const Providers = () => {
                         <h2>{formType} Proveedor</h2>
                         <ProviderForm
                             provider={currentProvider}
-                            setProvider={setCurrentProvider}
                             onSubmit={handleFormSubmit}
                             onCancel={handleCloseModal}
                         />
@@ -270,7 +240,6 @@ const Providers = () => {
     );
 };
 
-// Estilos
 const styles = {
     container: {
         backgroundColor: "#f2f2f2",

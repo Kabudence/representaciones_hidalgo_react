@@ -1,19 +1,34 @@
-import React from "react";
+import PropTypes from "prop-types";
+import { useState } from "react";
 
-const ProviderForm = ({ provider, setProvider, onSubmit, onCancel }) => {
+const estadoOptions = [
+    { value: "1", label: "Activo" },
+    { value: "2", label: "Inactivo" },
+];
+
+const ProviderForm = ({ provider, onSubmit, onCancel }) => {
+    const [localProvider, setLocalProvider] = useState(provider);
+
     const handleChange = (e) => {
         const { name, value } = e.target;
-        setProvider({ ...provider, [name]: value });
+        setLocalProvider({ ...localProvider, [name]: value });
+    };
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        if (onSubmit) {
+            onSubmit(localProvider);
+        }
     };
 
     return (
-        <form onSubmit={onSubmit} style={styles.form}>
+        <form onSubmit={handleSubmit} style={styles.form}>
             <div style={styles.formGroup}>
-                <label style={styles.label}>Código:</label>
+                <label style={styles.label}>RUC:</label>
                 <input
                     type="text"
-                    name="codigo"
-                    value={provider.codigo}
+                    name="ruc"
+                    value={localProvider.ruc}
                     onChange={handleChange}
                     style={styles.input}
                     required
@@ -23,8 +38,8 @@ const ProviderForm = ({ provider, setProvider, onSubmit, onCancel }) => {
                 <label style={styles.label}>Nombre:</label>
                 <input
                     type="text"
-                    name="nombre"
-                    value={provider.nombre}
+                    name="nomproveedor"
+                    value={localProvider.nomproveedor}
                     onChange={handleChange}
                     style={styles.input}
                     required
@@ -35,7 +50,7 @@ const ProviderForm = ({ provider, setProvider, onSubmit, onCancel }) => {
                 <input
                     type="text"
                     name="direccion"
-                    value={provider.direccion}
+                    value={localProvider.direccion}
                     onChange={handleChange}
                     style={styles.input}
                     required
@@ -46,10 +61,30 @@ const ProviderForm = ({ provider, setProvider, onSubmit, onCancel }) => {
                 <input
                     type="text"
                     name="telefono"
-                    value={provider.telefono}
+                    value={localProvider.telefono}
                     onChange={handleChange}
                     style={styles.input}
                     required
+                />
+            </div>
+            <div style={styles.formGroup}>
+                <label style={styles.label}>Celular:</label>
+                <input
+                    type="text"
+                    name="celular"
+                    value={localProvider.celular}
+                    onChange={handleChange}
+                    style={styles.input}
+                />
+            </div>
+            <div style={styles.formGroup}>
+                <label style={styles.label}>Contacto:</label>
+                <input
+                    type="text"
+                    name="contacto"
+                    value={localProvider.contacto}
+                    onChange={handleChange}
+                    style={styles.input}
                 />
             </div>
             <div style={styles.formGroup}>
@@ -57,7 +92,7 @@ const ProviderForm = ({ provider, setProvider, onSubmit, onCancel }) => {
                 <input
                     type="email"
                     name="correo"
-                    value={provider.correo}
+                    value={localProvider.correo}
                     onChange={handleChange}
                     style={styles.input}
                     required
@@ -67,25 +102,47 @@ const ProviderForm = ({ provider, setProvider, onSubmit, onCancel }) => {
                 <label style={styles.label}>Estado:</label>
                 <select
                     name="estado"
-                    value={provider.estado}
+                    value={localProvider.estado}
                     onChange={handleChange}
                     style={styles.select}
                     required
                 >
-                    <option value="Activo">Activo</option>
-                    <option value="Inactivo">Inactivo</option>
+                    {estadoOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                            {option.label}
+                        </option>
+                    ))}
                 </select>
             </div>
             <div style={styles.buttonGroup}>
                 <button type="submit" style={styles.saveButton}>
                     Guardar
                 </button>
-                <button type="button" onClick={onCancel} style={styles.cancelButton}>
+                <button
+                    type="button"
+                    onClick={onCancel}
+                    style={styles.cancelButton}
+                >
                     Cancelar
                 </button>
             </div>
         </form>
     );
+};
+
+ProviderForm.propTypes = {
+    provider: PropTypes.shape({
+        ruc: PropTypes.string.isRequired,
+        nomproveedor: PropTypes.string.isRequired,
+        direccion: PropTypes.string.isRequired,
+        telefono: PropTypes.string.isRequired,
+        celular: PropTypes.string,
+        contacto: PropTypes.string,
+        correo: PropTypes.string.isRequired,
+        estado: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+    }).isRequired,
+    onSubmit: PropTypes.func.isRequired,
+    onCancel: PropTypes.func.isRequired,
 };
 
 const styles = {
