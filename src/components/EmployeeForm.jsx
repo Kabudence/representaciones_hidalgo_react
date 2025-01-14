@@ -1,5 +1,10 @@
 import PropTypes from "prop-types";
 
+const estadoOptions = [
+    { value: "1", label: "Activo" },
+    { value: "2", label: "Inactivo" },
+];
+
 const EmployeeForm = ({ employee, setEmployee, onSubmit, onCancel }) => {
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -7,18 +12,10 @@ const EmployeeForm = ({ employee, setEmployee, onSubmit, onCancel }) => {
     };
 
     return (
-        <form onSubmit={onSubmit} style={styles.form}>
-            <div style={styles.formGroup}>
-                <label style={styles.label}>Código:</label>
-                <input
-                    type="text"
-                    name="codigo"
-                    value={employee.codigo}
-                    onChange={handleChange}
-                    style={styles.input}
-                    required
-                />
-            </div>
+        <form onSubmit={(e) => {
+            e.preventDefault();
+            onSubmit(employee);
+        }} style={styles.form}>
             <div style={styles.formGroup}>
                 <label style={styles.label}>Nombre:</label>
                 <input
@@ -64,6 +61,28 @@ const EmployeeForm = ({ employee, setEmployee, onSubmit, onCancel }) => {
                 />
             </div>
             <div style={styles.formGroup}>
+                <label style={styles.label}>ID Empresa (idemp):</label>
+                <input
+                    type="number"
+                    name="idemp"
+                    value={employee.idemp || ""}
+                    onChange={handleChange}
+                    style={styles.input}
+                    required
+                />
+            </div>
+            <div style={styles.formGroup}>
+                <label style={styles.label}>ID Vendedor (idvend):</label>
+                <input
+                    type="number"
+                    name="idvend"
+                    value={employee.idvend || ""}
+                    onChange={handleChange}
+                    style={styles.input}
+                    required
+                />
+            </div>
+            <div style={styles.formGroup}>
                 <label style={styles.label}>Estado:</label>
                 <select
                     name="estado"
@@ -72,15 +91,22 @@ const EmployeeForm = ({ employee, setEmployee, onSubmit, onCancel }) => {
                     style={styles.select}
                     required
                 >
-                    <option value="Activo">Activo</option>
-                    <option value="Inactivo">Inactivo</option>
+                    {estadoOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                            {option.label}
+                        </option>
+                    ))}
                 </select>
             </div>
             <div style={styles.buttonGroup}>
                 <button type="submit" style={styles.saveButton}>
                     Guardar
                 </button>
-                <button type="button" onClick={onCancel} style={styles.cancelButton}>
+                <button
+                    type="button"
+                    onClick={onCancel}
+                    style={styles.cancelButton}
+                >
                     Cancelar
                 </button>
             </div>
@@ -90,11 +116,12 @@ const EmployeeForm = ({ employee, setEmployee, onSubmit, onCancel }) => {
 
 EmployeeForm.propTypes = {
     employee: PropTypes.shape({
-        codigo: PropTypes.string.isRequired,
         nombre: PropTypes.string.isRequired,
         direccion: PropTypes.string.isRequired,
         telefono: PropTypes.string.isRequired,
         correo: PropTypes.string.isRequired,
+        idemp: PropTypes.number.isRequired,
+        idvend: PropTypes.number.isRequired,
         estado: PropTypes.string.isRequired,
     }).isRequired,
     setEmployee: PropTypes.func.isRequired,

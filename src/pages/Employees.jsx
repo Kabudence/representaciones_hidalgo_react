@@ -1,30 +1,48 @@
-import { useState } from "react";
+// Employees.jsx
+import { useState, useEffect } from "react";
 import Employee from "../models/Employee";
 import EmployeeForm from "../components/EmployeeForm.jsx";
 import Pagination from "../components/Pagination";
+import employeeService from "../services/employeeService";
 
 const Employees = () => {
-    const [employees, setEmployees] = useState([
-        new Employee(1, "EMP001", "Juan Pérez", "Calle 123", "987654321", "juan.perez@example.com", "Activo"),
-        new Employee(2, "EMP002", "María López", "Calle 456", "987123456", "maria.lopez@example.com", "Inactivo"),
-        // Generar datos de prueba adicionales
-        ...Array.from({ length: 100 }, (_, i) =>
-            new Employee(i + 3, `EMP00${i + 3}`, `Empleado ${i + 3}`, `Calle ${i + 3}`, "987654321", "Activo")
-        ),
-    ]);
-
+    const [employees, setEmployees] = useState([]);
     const [showModal, setShowModal] = useState(false);
     const [formType, setFormType] = useState("Agregar");
     const [currentEmployee, setCurrentEmployee] = useState(null);
     const [searchTerm, setSearchTerm] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
+    const [loading, setLoading] = useState(true);
 
     const itemsPerPage = 10;
 
+    useEffect(() => {
+        employeeService.getAll()
+            .then((data) => {
+                const employeeObjects = data.map(
+                    (e) =>
+                        new Employee(
+                            e.idvend,
+                            e.nomvendedor,
+                            e.direccion,
+                            e.telefono,
+                            e.correo,
+                            e.idemp,
+                            e.estado
+                        )
+                );
+                setEmployees(employeeObjects);
+                setLoading(false);
+            })
+            .catch((error) => {
+                console.error("Error fetching employees:", error);
+                setLoading(false);
+            });
+    }, []);
+
     const filteredEmployees = employees.filter(
         (employee) =>
-            employee.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            employee.codigo.toLowerCase().includes(searchTerm.toLowerCase())
+            employee.nombre.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     const totalPages = Math.ceil(filteredEmployees.length / itemsPerPage);
@@ -37,7 +55,7 @@ const Employees = () => {
     const handleOpenModal = (type, employee = null) => {
         setFormType(type);
         setCurrentEmployee(
-            employee || new Employee(employees.length + 1, "", "", "", "", "", "Activo")
+            employee || new Employee("", "", "", "", "", "", "1")
         );
         setShowModal(true);
     };
@@ -46,30 +64,92 @@ const Employees = () => {
         setShowModal(false);
     };
 
-    const handleFormSubmit = (e) => {
-        e.preventDefault();
+    const handleFormSubmit = (employeeData) => {
         try {
-            Employee.validate(currentEmployee);
+            Employee.validate(employeeData);
+
+            const payload = {
+                idvend: employeeData.idvend,
+                nomvendedor: employeeData.nombre,
+                direccion: employeeData.direccion,
+                telefono: employeeData.telefono,
+                correo: employeeData.correo,
+                idemp: employeeData.idemp,
+                estado: employeeData.estado,
+            };
+
+            // Log del payload que se enviará
+            console.log("Payload enviado al backend:", payload);
+
             if (formType === "Agregar") {
-                setEmployees([...employees, currentEmployee]);
+                employeeService
+                    .create(payload)
+                    .then((newEmployee) => {
+                        console.log("Respuesta del backend al crear:", newEmployee);
+                        setEmployees([
+                            ...employees,
+                            new Employee(
+                                newEmployee.idvend,
+                                newEmployee.nomvendedor,
+                                newEmployee.direccion,
+                                newEmployee.telefono,
+                                newEmployee.correo,
+                                newEmployee.idemp,
+                                newEmployee.estado
+                            ),
+                        ]);
+                        handleCloseModal();
+                    })
+                    .catch((error) => {
+                        console.error("Error creando el empleado:", error);
+                    });
             } else {
-                setEmployees(
-                    employees.map((emp) => (emp.id === currentEmployee.id ? currentEmployee : emp))
-                );
+                employeeService
+                    .update(employeeData.id, payload)
+                    .then((updatedEmployee) => {
+                        console.log("Respuesta del backend al actualizar:", updatedEmployee);
+                        setEmployees(
+                            employees.map((emp) =>
+                                emp.id === employeeData.id
+                                    ? new Employee(
+                                        updatedEmployee.idvend,
+                                        updatedEmployee.nomvendedor,
+                                        updatedEmployee.direccion,
+                                        updatedEmployee.telefono,
+                                        updatedEmployee.correo,
+                                        updatedEmployee.idemp,
+                                        updatedEmployee.estado
+                                    )
+                                    : emp
+                            )
+                        );
+                        handleCloseModal();
+                    })
+                    .catch((error) => {
+                        console.error("Error actualizando el empleado:", error);
+                    });
             }
-            handleCloseModal();
         } catch (error) {
             alert(error.message);
         }
     };
 
     const handleDelete = (id) => {
-        setEmployees(employees.filter((employee) => employee.id !== id));
+        employeeService
+            .delete(id)
+            .then(() => {
+                setEmployees(employees.filter((employee) => employee.id !== id));
+            })
+            .catch((error) => console.error("Error deleting employee:", error));
     };
 
     const handlePageChange = (newPage) => {
         setCurrentPage(newPage);
     };
+
+    if (loading) {
+        return <div>Cargando empleados...</div>;
+    }
 
     return (
         <div style={styles.container}>
@@ -90,7 +170,6 @@ const Employees = () => {
                 <thead>
                 <tr style={styles.tableHeader}>
                     <th>ID</th>
-                    <th>Código</th>
                     <th>Nombre</th>
                     <th>Dirección</th>
                     <th>Teléfono</th>
@@ -103,7 +182,6 @@ const Employees = () => {
                 {paginatedEmployees.map((employee) => (
                     <tr key={employee.id} style={styles.tableRow}>
                         <td style={styles.tableCell}>{employee.id}</td>
-                        <td style={styles.tableCell}>{employee.codigo}</td>
                         <td style={styles.tableCell}>{employee.nombre}</td>
                         <td style={styles.tableCell}>{employee.direccion}</td>
                         <td style={styles.tableCell}>{employee.telefono}</td>
@@ -111,10 +189,10 @@ const Employees = () => {
                         <td
                             style={{
                                 ...styles.tableCell,
-                                ...(employee.estado === "Activo" ? styles.active : styles.inactive),
+                                color: employee.estado === "1" ? "green" : "red",
                             }}
                         >
-                            {employee.estado}
+                            {employee.estado === "1" ? "Activo" : "Inactivo"}
                         </td>
                         <td style={styles.tableCell}>
                             <button
@@ -211,14 +289,6 @@ const styles = {
     tableCell: {
         padding: "15px 10px",
         textAlign: "left",
-    },
-    active: {
-        color: "green",
-        fontWeight: "bold",
-    },
-    inactive: {
-        color: "red",
-        fontWeight: "bold",
     },
     editButton: {
         backgroundColor: "#ffc107",
