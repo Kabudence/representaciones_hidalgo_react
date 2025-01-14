@@ -1,30 +1,56 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Product from "../models/Product";
 import ProductForm from "../components/ProductForm.jsx";
 import Pagination from "../components/Pagination";
+import productService from "../services/productService";
 
 const Products = () => {
-    const [products, setProducts] = useState([
-        new Product("P001", "Producto 1", "kg", 50, 30, 10, 20.0, 25.0, "Modelo1", "10x10", "Clase A"),
-        new Product("P002", "Producto 2", "unit", 100, 80, 20, 15.0, 20.0, "Modelo2", "20x20", "Clase B"),
-        ...Array.from({ length: 100 }, (_, i) =>
-            new Product(`P00${i + 3}`, `Producto ${i + 3}`, "unit", i * 10, i * 8, 5, 10.0 + i, 12.5 + i, `Modelo${i + 3}`, `${i}x${i}`, "Clase C")
-        ),
-    ]);
-
+    const [products, setProducts] = useState([]);
     const [showModal, setShowModal] = useState(false);
     const [formType, setFormType] = useState("Agregar");
     const [currentProduct, setCurrentProduct] = useState(null);
     const [searchTerm, setSearchTerm] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
+    const [loading, setLoading] = useState(true);
 
     const itemsPerPage = 10;
 
-    const filteredProducts = products.filter(
-        (product) =>
-            product.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            product.id.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    useEffect(() => {
+        console.log("Fetching products...");
+        productService
+            .getAll()
+            .then((data) => {
+                console.log("Productos recibidos:", data);
+                const productObjects = data.map((p, index) => ({
+                    id: p.idprod || `Producto-${index + 1}`, // ID único por defecto
+                    nombre: p.nomproducto || "Sin Nombre",
+                    unidad_medida: p.umedida || "Sin Unidad",
+                    stock_inicial: p.st_ini || 0,
+                    stock_actual: p.st_act || 0,
+                    stock_minimo: p.st_min || 0,
+                    precio_costo: p.pr_costo || 0.0,
+                    precio_venta: p.prventa || 0.0,
+                    modelo: p.modelo || "Sin Modelo",
+                    medida: p.medida || "Sin Medida",
+                }));
+                console.log("Productos procesados:", productObjects);
+                setProducts(productObjects);
+                setLoading(false);
+            })
+            .catch((error) => {
+                console.error("Error fetching products:", error);
+                setLoading(false);
+            });
+    }, []);
+
+    const filteredProducts = products.filter((product) => {
+        const nombre = product.nombre || "";
+        const id = product.id || "";
+        return (
+            nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            id.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+    });
 
     const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
 
@@ -37,7 +63,18 @@ const Products = () => {
         setFormType(type);
         setCurrentProduct(
             product ||
-            new Product("", "", "", 0, 0, 0, 0.0, 0.0, "", "", "")
+            new Product({
+                id: "",
+                nombre: "",
+                unidad_medida: "",
+                stock_inicial: 0,
+                stock_actual: 0,
+                stock_minimo: 0,
+                precio_costo: 0.0,
+                precio_venta: 0.0,
+                modelo: "",
+                medida: "",
+            })
         );
         setShowModal(true);
     };
@@ -46,30 +83,56 @@ const Products = () => {
         setShowModal(false);
     };
 
-    const handleFormSubmit = (e) => {
-        e.preventDefault();
+    const handleFormSubmit = (productData) => {
         try {
-            Product.validate(currentProduct);
+            Product.validate(productData);
+
             if (formType === "Agregar") {
-                setProducts([...products, currentProduct]);
+                productService
+                    .create(productData)
+                    .then((newProduct) => {
+                        setProducts([...products, newProduct]);
+                        handleCloseModal();
+                    })
+                    .catch((error) =>
+                        console.error("Error creating product:", error)
+                    );
             } else {
-                setProducts(
-                    products.map((p) => (p.id === currentProduct.id ? currentProduct : p))
-                );
+                productService
+                    .update(productData.id, productData)
+                    .then((updatedProduct) => {
+                        setProducts(
+                            products.map((p) =>
+                                p.id === productData.id ? updatedProduct : p
+                            )
+                        );
+                        handleCloseModal();
+                    })
+                    .catch((error) =>
+                        console.error("Error updating product:", error)
+                    );
             }
-            handleCloseModal();
         } catch (error) {
             alert(error.message);
         }
     };
 
     const handleDelete = (id) => {
-        setProducts(products.filter((product) => product.id !== id));
+        productService
+            .remove(id)
+            .then(() => {
+                setProducts(products.filter((product) => product.id !== id));
+            })
+            .catch((error) => console.error("Error deleting product:", error));
     };
 
     const handlePageChange = (newPage) => {
         setCurrentPage(newPage);
     };
+
+    if (loading) {
+        return <div>Cargando productos...</div>;
+    }
 
     return (
         <div style={styles.container}>
@@ -99,13 +162,12 @@ const Products = () => {
                     <th>Precio Venta</th>
                     <th>Modelo</th>
                     <th>Medida</th>
-                    <th>Clase</th>
                     <th>Acciones</th>
                 </tr>
                 </thead>
                 <tbody>
-                {paginatedProducts.map((product) => (
-                    <tr key={product.id} style={styles.tableRow}>
+                {paginatedProducts.map((product, index) => (
+                    <tr key={product.id || `row-${index}`} style={styles.tableRow}>
                         <td style={styles.tableCell}>{product.id}</td>
                         <td style={styles.tableCell}>{product.nombre}</td>
                         <td style={styles.tableCell}>{product.unidad_medida}</td>
@@ -116,7 +178,6 @@ const Products = () => {
                         <td style={styles.tableCell}>{product.precio_venta.toFixed(2)}</td>
                         <td style={styles.tableCell}>{product.modelo}</td>
                         <td style={styles.tableCell}>{product.medida}</td>
-                        <td style={styles.tableCell}>{product.clase}</td>
                         <td style={styles.tableCell}>
                             <button
                                 onClick={() => handleOpenModal("Editar", product)}
@@ -156,7 +217,6 @@ const Products = () => {
         </div>
     );
 };
-
 const styles = {
     container: {
         backgroundColor: "#f2f2f2",
