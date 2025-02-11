@@ -84,36 +84,33 @@ const Products = () => {
     };
 
     const handleFormSubmit = (productData) => {
-        try {
-            Product.validate(productData);
+        console.log("Datos enviados al servidor para PUT:", productData);
 
-            if (formType === "Agregar") {
-                productService
-                    .create(productData)
-                    .then((newProduct) => {
-                        setProducts([...products, newProduct]);
-                        handleCloseModal();
-                    })
-                    .catch((error) =>
-                        console.error("Error creating product:", error)
+        if (formType === "Agregar") {
+            productService
+                .create(productData)
+                .then((newProduct) => {
+                    setProducts([...products, newProduct]);
+                    handleCloseModal();
+                })
+                .catch((error) =>
+                    alert(`Error al crear el producto: ${error.message}`)
+                );
+        } else {
+            productService
+                .update(productData.id, productData)
+                .then((updatedProduct) => {
+                    console.log("Respuesta del servidor para PUT:", updatedProduct);
+                    setProducts(
+                        products.map((p) =>
+                            p.id === productData.id ? { ...p, ...productData } : p
+                        )
                     );
-            } else {
-                productService
-                    .update(productData.id, productData)
-                    .then((updatedProduct) => {
-                        setProducts(
-                            products.map((p) =>
-                                p.id === productData.id ? updatedProduct : p
-                            )
-                        );
-                        handleCloseModal();
-                    })
-                    .catch((error) =>
-                        console.error("Error updating product:", error)
-                    );
-            }
-        } catch (error) {
-            alert(error.message);
+                    handleCloseModal();
+                })
+                .catch((error) =>
+                    alert(`Error al actualizar el producto: ${error.message}`)
+                );
         }
     };
 

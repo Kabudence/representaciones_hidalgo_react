@@ -23,7 +23,26 @@ const productService = {
 
     update: async (id, product) => {
         try {
-            const response = await api.put(`/productos/${id}`, product);
+            // Aquí aseguramos que los datos coincidan con el formato esperado por el backend
+            const productData = {
+                idemp: product.idemp || "01", // Valores predeterminados
+                periodo: product.periodo || "2025",
+                idprod: product.id,
+                nomproducto: product.nombre,
+                umedida: product.unidad_medida,
+                st_ini: product.stock_inicial,
+                st_act: product.stock_actual,
+                st_min: product.stock_minimo,
+                pr_costo: product.precio_costo,
+                prventa: product.precio_venta,
+                modelo: product.modelo || "MODELO",
+                medida: product.medida || "MEDIDA",
+                estado: product.estado || 1,
+            };
+
+            console.log("Enviando datos al backend (PUT):", productData);
+
+            const response = await api.put(`/productos/${id}`, productData);
             return response.data; // Retorna el producto actualizado
         } catch (error) {
             console.error('Error updating product:', error);
