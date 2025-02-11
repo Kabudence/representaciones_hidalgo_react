@@ -1,17 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Line from "../models/Line";
-import LineForm from "../components/LineForm.jsx";
+import LineForm from "../components/LineForm";
 import Pagination from "../components/Pagination";
+import lineService from "../services/lineService";
 
 const Lines = () => {
-    const [lines, setLines] = useState([
-        new Line(1, "Línea 1", "Activo"),
-        new Line(2, "Línea 2", "Inactivo"),
-        ...Array.from({ length: 100 }, (_, i) =>
-            new Line(i + 3, `Línea ${i + 3}`, i % 2 === 0 ? "Activo" : "Inactivo")
-        ),
-    ]);
-
+    const [lines, setLines] = useState([]);
     const [showModal, setShowModal] = useState(false);
     const [formType, setFormType] = useState("Agregar");
     const [currentLine, setCurrentLine] = useState(null);
@@ -20,20 +14,43 @@ const Lines = () => {
 
     const itemsPerPage = 10;
 
+    useEffect(() => {
+        lineService
+            .getAll()
+            .then((data) => {
+                console.log("Lines -> useEffect -> data:", data);
+                setLines(data);
+            })
+            .catch((err) => console.error("Error fetching lines:", err));
+    }, []);
+
+    // Filtrado según searchTerm
     const filteredLines = lines.filter((line) =>
         line.nombre.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    // Paginación
     const totalPages = Math.ceil(filteredLines.length / itemsPerPage);
-
     const paginatedLines = filteredLines.slice(
         (currentPage - 1) * itemsPerPage,
         currentPage * itemsPerPage
     );
 
+    // Abrir modal
     const handleOpenModal = (type, line = null) => {
         setFormType(type);
-        setCurrentLine(line || new Line(lines.length + 1, "", "Activo"));
+
+        if (type === "Agregar") {
+            // Creamos un line por defecto con estado="1" (Activo)
+            // y idemp como string (p.ej. "1")
+            setCurrentLine(new Line(null, "", "1", "1"));
+        } else if (line) {
+            // Clonamos la línea (para no mutar directamente)
+            setCurrentLine(
+                new Line(line.idlinea, line.nombre, line.estado, line.idemp)
+            );
+        }
+
         setShowModal(true);
     };
 
@@ -41,34 +58,82 @@ const Lines = () => {
         setShowModal(false);
     };
 
-    const handleFormSubmit = (e) => {
-        e.preventDefault();
+    const handleFormSubmit = (formData) => {
+        console.log("handleFormSubmit -> formData:", formData);
+        // Convertir a un objeto Line
+        const finalLine = new Line(
+            formData.idlinea ? Number(formData.idlinea) : null,
+            formData.nombre,
+            formData.estado,
+            formData.idemp // ya es un string
+        );
+
         try {
-            Line.validate(currentLine);
+            Line.validate(finalLine);
+
             if (formType === "Agregar") {
-                setLines([...lines, currentLine]);
+                // CREATE
+                lineService
+                    .create(finalLine)
+                    .then((newLine) => {
+                        console.log("Lines -> created line:", newLine);
+                        setLines([...lines, newLine]);
+                        setShowModal(false);
+                    })
+                    .catch((err) => {
+                        console.error("Error creating line:", err);
+                    });
             } else {
-                setLines(
-                    lines.map((line) => (line.id === currentLine.id ? currentLine : line))
-                );
+                // EDIT / UPDATE
+                if (!finalLine.idlinea) {
+                    console.error("No se puede editar si 'idlinea' es null.");
+                    return;
+                }
+                lineService
+                    .update(finalLine.idlinea, finalLine)
+                    .then((updated) => {
+                        console.log("Lines -> updated line:", updated);
+                        const updatedList = lines.map((item) =>
+                            item.idlinea === updated.idlinea ? updated : item
+                        );
+                        setLines(updatedList);
+                        setShowModal(false);
+                    })
+                    .catch((err) => {
+                        console.error("Error updating line:", err);
+                    });
             }
-            handleCloseModal();
-        } catch (error) {
-            alert(error.message);
+        } catch (validationErr) {
+            alert(validationErr.message);
         }
     };
 
-    const handleDelete = (id) => {
-        setLines(lines.filter((line) => line.id !== id));
+    const handleDelete = (idlinea) => {
+        if (!window.confirm("¿Seguro que deseas eliminar esta línea?")) {
+            return;
+        }
+        lineService
+            .remove(idlinea)
+            .then((res) => {
+                console.log("Lines -> removed line, server response:", res);
+                const newList = lines.filter((line) => line.idlinea !== idlinea);
+                setLines(newList);
+            })
+            .catch((err) => console.error("Error deleting line:", err));
     };
 
     const handlePageChange = (newPage) => {
         setCurrentPage(newPage);
     };
 
+    if (!lines) {
+        return <div>Cargando...</div>;
+    }
+
     return (
         <div style={styles.container}>
             <h1 style={styles.title}>Lista de Líneas</h1>
+
             <div style={styles.searchContainer}>
                 <input
                     type="text"
@@ -81,39 +146,41 @@ const Lines = () => {
                     Agregar Línea
                 </button>
             </div>
+
             <table style={styles.table}>
                 <thead>
                 <tr style={styles.tableHeader}>
                     <th>ID</th>
                     <th>Nombre</th>
+                    <th>ID Empresa</th>
                     <th>Estado</th>
                     <th>Acciones</th>
                 </tr>
                 </thead>
                 <tbody>
                 {paginatedLines.map((line) => (
-                    <tr key={line.id} style={styles.tableRow}>
-                        <td style={styles.tableCell}>{line.id}</td>
+                    <tr key={line.idlinea} style={styles.tableRow}>
+                        <td style={styles.tableCell}>{line.idlinea}</td>
                         <td style={styles.tableCell}>{line.nombre}</td>
-                        <td
-                            style={{
-                                ...styles.tableCell,
-                                color: line.estado === "Activo" ? "green" : "red",
-                                fontWeight: "bold",
-                            }}
-                        >
-                            {line.estado}
+                        <td style={styles.tableCell}>{line.idemp}</td>
+                        <td style={styles.tableCell}>
+                            {/* Mostrar "Activo" o "Inactivo" */}
+                            {line.estado === "1" ? (
+                                <span style={{ color: "green" }}>Activo</span>
+                            ) : (
+                                <span style={{ color: "red" }}>Inactivo</span>
+                            )}
                         </td>
                         <td style={styles.tableCell}>
                             <button
-                                onClick={() => handleOpenModal("Editar", line)}
                                 style={styles.editButton}
+                                onClick={() => handleOpenModal("Editar", line)}
                             >
                                 Editar
                             </button>
                             <button
-                                onClick={() => handleDelete(line.id)}
                                 style={styles.deleteButton}
+                                onClick={() => handleDelete(line.idlinea)}
                             >
                                 Eliminar
                             </button>
@@ -122,18 +189,20 @@ const Lines = () => {
                 ))}
                 </tbody>
             </table>
+
             <Pagination
                 totalPages={totalPages}
                 currentPage={currentPage}
                 onPageChange={handlePageChange}
             />
+
+            {/* Modal emergente */}
             {showModal && (
                 <div style={styles.modalOverlay}>
                     <div style={styles.modal}>
                         <h2>{formType} Línea</h2>
                         <LineForm
                             line={currentLine}
-                            setLine={setCurrentLine}
                             onSubmit={handleFormSubmit}
                             onCancel={handleCloseModal}
                         />
@@ -156,14 +225,12 @@ const styles = {
         marginBottom: "15px",
         fontFamily: "'PT Sans Narrow', sans-serif",
         fontSize: "50px",
-
     },
     searchContainer: {
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
         marginBottom: "20px",
-
     },
     searchInput: {
         flex: 1,
@@ -173,7 +240,7 @@ const styles = {
         borderRadius: "5px",
     },
     addButton: {
-        padding: "10px",
+        padding: "10px 20px",
         backgroundColor: "#524b4a",
         color: "white",
         border: "none",
@@ -181,7 +248,6 @@ const styles = {
         borderRadius: "5px",
         fontWeight: "bold",
         minWidth: "120px",
-        textAlign: "center",
     },
     table: {
         width: "100%",
@@ -191,13 +257,11 @@ const styles = {
         borderRadius: "8px",
         overflow: "hidden",
         boxShadow: "0px 4px 6px rgba(0, 0, 0, 0.1)",
-        tableLayout: "fixed", // Asegura una distribución uniforme
+        tableLayout: "fixed",
     },
     tableHeader: {
         backgroundColor: "#e0e0e0",
         fontWeight: "bold",
-        textAlign: "left",
-
     },
     tableRow: {
         borderBottom: "1px solid #ccc",
@@ -206,26 +270,9 @@ const styles = {
         padding: "10px 15px",
         textAlign: "left",
         fontSize: "14px",
-        whiteSpace: "nowrap", // Previene que el texto se desborde
+        whiteSpace: "nowrap",
         overflow: "hidden",
         textOverflow: "ellipsis",
-        paddingLeft: "5px"
-    },
-    wideCell: {
-        width: "50%", // Aplica solo a columnas amplias, como "Nombre"
-    },
-    narrowCell: {
-        width: "15%", // Aplica a columnas como "Estado"
-    },
-    active: {
-        color: "green",
-        fontWeight: "bold",
-        textAlign: "center",
-    },
-    inactive: {
-        color: "red",
-        fontWeight: "bold",
-        textAlign: "center",
     },
     editButton: {
         backgroundColor: "#ffc107",
@@ -236,7 +283,6 @@ const styles = {
         borderRadius: "5px",
         marginRight: "5px",
         fontWeight: "bold",
-        minWidth: "70px",
     },
     deleteButton: {
         backgroundColor: "#dc3545",
@@ -246,7 +292,25 @@ const styles = {
         cursor: "pointer",
         borderRadius: "5px",
         fontWeight: "bold",
-        minWidth: "70px",
+    },
+    modalOverlay: {
+        position: "fixed",
+        top: 0,
+        left: 0,
+        width: "100%",
+        height: "100%",
+        backgroundColor: "rgba(0, 0, 0, 0.5)",
+        zIndex: 999,
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    modal: {
+        backgroundColor: "#fff",
+        padding: "30px",
+        borderRadius: "8px",
+        width: "400px",
+        boxShadow: "0px 4px 6px rgba(0, 0, 0, 0.3)",
     },
 };
 
