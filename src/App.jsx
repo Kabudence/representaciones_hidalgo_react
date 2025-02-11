@@ -1,35 +1,127 @@
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
-import Navbar from './components/Navbar';
-import Footer from './components/Footer'; // Importa el Footer
-import Home from './pages/Home/Home.jsx';
-import Employees from './pages/Employees';
+
+import { BrowserRouter as Router, Route, Routes, Navigate } from "react-router-dom";
+import Navbar from "./components/Navbar";
+import Footer from "./components/Footer";
+import Home from "./pages/Home/Home.jsx";
+import Employees from "./pages/Employees";
 import Providers from "./pages/Providers.jsx";
 import Clientes from "./pages/Clientes.jsx";
 import Ventas from "./pages/Ventas.jsx";
 import Products from "./pages/Products.jsx";
 import Lines from "./pages/Lines.jsx";
+import Compras from "./pages/Compras.jsx";
+import Clases from "./pages/Clases.jsx";
+import { useContext } from "react";
+import { AuthContext, AuthProvider } from "./components/auth-components/AuthContext.jsx";
+import PropTypes from "prop-types";
+
+const ProtectedRoute = ({ children }) => {
+    const { authData, isAuthDataLoaded } = useContext(AuthContext);
+
+    // Logs para depuración de ProtectedRoute
+    console.log("[ProtectedRoute] authData recibido:", authData);
+
+    if (!isAuthDataLoaded) {
+        console.log("[ProtectedRoute] Cargando datos de autenticación...");
+        return <div>Cargando autenticación...</div>; // Puedes mostrar un spinner aquí si lo prefieres
+    }
+
+    if (!authData || !authData.token) {
+        console.log("[ProtectedRoute] No autenticado. Redirigiendo a Home...");
+        return <Navigate to="/" replace />;
+    }
+
+    console.log("[ProtectedRoute] Autorizado para acceder a la ruta.");
+    return children;
+};
 
 const App = () => {
     return (
-        <Router>
-            <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
-                <Navbar />
-                <div style={{ flex: 1 }}>
-                    <Routes>
-                        <Route path="/" element={<Home />} />
-                        <Route path="/clientes" element={<Clientes/>} />
-                        <Route path="/proveedores" element={<Providers/>} />
-                        <Route path="/ventas" element={<Ventas/>} />
-                        <Route path="/lineas" element={<Lines/>} />
-                        <Route path="/compras" element={<div>Compras Page</div>} />
-                        <Route path="/productos" element={<Products/>} />
-                        <Route path="/empleados" element={<Employees />} />
-                    </Routes>
+        <AuthProvider>
+            <Router>
+                <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+                    <Navbar />
+                    <div style={{ flex: 1 }}>
+                        <Routes>
+                            {/* Ruta pública */}
+                            <Route path="/" element={<Home />} />
+
+                            {/* Rutas protegidas */}
+                            <Route
+                                path="/clientes"
+                                element={
+                                    <ProtectedRoute>
+                                        <Clientes />
+                                    </ProtectedRoute>
+                                }
+                            />
+                            <Route
+                                path="/proveedores"
+                                element={
+                                    <ProtectedRoute>
+                                        <Providers />
+                                    </ProtectedRoute>
+                                }
+                            />
+                            <Route
+                                path="/ventas"
+                                element={
+                                    <ProtectedRoute>
+                                        <Ventas />
+                                    </ProtectedRoute>
+                                }
+                            />
+                            <Route
+                                path="/lineas"
+                                element={
+                                    <ProtectedRoute>
+                                        <Lines />
+                                    </ProtectedRoute>
+                                }
+                            />
+                            <Route
+                                path="/compras"
+                                element={
+                                    <ProtectedRoute>
+                                        <Compras />
+                                    </ProtectedRoute>
+                                }
+                            />
+                            <Route
+                                path="/productos"
+                                element={
+                                    <ProtectedRoute>
+                                        <Products />
+                                    </ProtectedRoute>
+                                }
+                            />
+                            <Route
+                                path="/empleados"
+                                element={
+                                    <ProtectedRoute>
+                                        <Employees />
+                                    </ProtectedRoute>
+                                }
+                            />
+                            <Route
+                                path="/clases"
+                                element={
+                                    <ProtectedRoute>
+                                        <Clases />
+                                    </ProtectedRoute>
+                                }
+                            />
+                        </Routes>
+                    </div>
+                    <Footer />
                 </div>
-                <Footer />
-            </div>
-        </Router>
+            </Router>
+        </AuthProvider>
     );
+};
+
+ProtectedRoute.propTypes = {
+    children: PropTypes.node.isRequired, // 'children' debe ser un nodo React (componente hijo)
 };
 
 export default App;
