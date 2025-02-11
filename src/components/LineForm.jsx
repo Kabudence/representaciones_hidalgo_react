@@ -1,40 +1,83 @@
+import React from "react";
 import PropTypes from "prop-types";
 
-const LineForm = ({ line, setLine, onSubmit, onCancel }) => {
+// Mapeo para el dropdown de estado
+const estadoOptions = [
+    { value: "1", label: "Activo" },
+    { value: "2", label: "Inactivo" },
+];
+
+const LineForm = ({ line, onSubmit, onCancel }) => {
+    const [localLine, setLocalLine] = React.useState(line);
+
     const handleChange = (e) => {
         const { name, value } = e.target;
-        setLine({ ...line, [name]: value });
+        setLocalLine({ ...localLine, [name]: value });
+    };
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        // Creamos el "transformedLine" con la info del formulario
+        const transformedLine = { ...localLine };
+
+        if (onSubmit && typeof onSubmit === "function") {
+            onSubmit(transformedLine);
+        } else {
+            console.error("onSubmit no está definido o no es una función.");
+        }
     };
 
     return (
-        <form onSubmit={onSubmit} style={styles.form}>
+        <form onSubmit={handleSubmit} style={styles.form}>
             <div style={styles.formGroup}>
                 <label style={styles.label}>Nombre:</label>
                 <input
                     type="text"
                     name="nombre"
-                    value={line.nombre}
+                    value={localLine.nombre}
                     onChange={handleChange}
                     style={styles.input}
                     required
                 />
             </div>
+
             <div style={styles.formGroup}>
                 <label style={styles.label}>Estado:</label>
                 <select
                     name="estado"
-                    value={line.estado}
+                    value={localLine.estado}
                     onChange={handleChange}
                     style={styles.select}
                     required
                 >
-                    <option value="Activo">Activo</option>
-                    <option value="Inactivo">Inactivo</option>
+                    {estadoOptions.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                        </option>
+                    ))}
                 </select>
             </div>
+
+            <div style={styles.formGroup}>
+                <label style={styles.label}>ID Empresa:</label>
+                {/* Maneja idemp como string (type="text") */}
+                <input
+                    type="text"
+                    name="idemp"
+                    value={localLine.idemp}
+                    onChange={handleChange}
+                    style={styles.input}
+                    required
+                />
+            </div>
+
             <div style={styles.buttonGroup}>
-                <button type="submit" style={styles.saveButton}>Guardar</button>
-                <button type="button" onClick={onCancel} style={styles.cancelButton}>Cancelar</button>
+                <button type="submit" style={styles.saveButton}>
+                    Guardar
+                </button>
+                <button type="button" onClick={onCancel} style={styles.cancelButton}>
+                    Cancelar
+                </button>
             </div>
         </form>
     );
@@ -42,11 +85,12 @@ const LineForm = ({ line, setLine, onSubmit, onCancel }) => {
 
 LineForm.propTypes = {
     line: PropTypes.shape({
-        id: PropTypes.number,
+        idlinea: PropTypes.oneOfType([PropTypes.number, PropTypes.null]),
         nombre: PropTypes.string.isRequired,
-        estado: PropTypes.oneOf(["Activo", "Inactivo"]).isRequired,
+        estado: PropTypes.oneOf(["1", "2"]).isRequired, // "1"=Activo,"2"=Inactivo
+        // idemp como string
+        idemp: PropTypes.string.isRequired,
     }).isRequired,
-    setLine: PropTypes.func.isRequired,
     onSubmit: PropTypes.func.isRequired,
     onCancel: PropTypes.func.isRequired,
 };
