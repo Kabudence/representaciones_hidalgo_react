@@ -1,166 +1,248 @@
-import { useState } from "react";
-import Venta from "../models/Venta";
-import VentaForm from "../components/VentaForm.jsx";
+import { useState, useEffect } from "react";
+import ventaService from "../services/ventaService";
+import VentasAdvancedSearch from "../components/VentasAdvancedSearch.jsx";
+import jsPDF from "jspdf";
+import "jspdf-autotable";
 
-const Ventas = () => {
-    const [ventas, setVentas] = useState([
-        new Venta(
-            1,
-            "2025-01-02",
-            "Ingreso",
-            "Directa",
-            "001-0001",
-            "Carlos Gómez",
-            500.0,
-            90.0,
-            590.0,
-            "PROCESADA"
-        ),
-        new Venta(
-            2,
-            "2025-01-01",
-            "Egreso",
-            "Online",
-            "001-0002",
-            "Mariana Torres",
-            300.0,
-            54.0,
-            354.0,
-            "PENDIENTE"
-        ),
-    ]);
+function Ventas() {
+    const [ventas, setVentas] = useState([]);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [total, setTotal] = useState(0);
+    const [size] = useState(10);
+    const [loading, setLoading] = useState(false);
+    const [isAdvancedSearch, setIsAdvancedSearch] = useState(false);
+    const [advancedFilters, setAdvancedFilters] = useState(null);
 
-    const [showModal, setShowModal] = useState(false);
-    const [formType, setFormType] = useState("Agregar");
-    const [currentVenta, setCurrentVenta] = useState(null);
-    const [searchTerm, setSearchTerm] = useState("");
-
-    const filteredVentas = ventas.filter(
-        (venta) =>
-            venta.numeroComprobante.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            venta.cliente.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-
-    const handleOpenModal = (type, venta = null) => {
-        setFormType(type);
-        setCurrentVenta(
-            venta ||
-            new Venta(ventas.length + 1, "", "", "", "", "", 0, 0, 0, "PROCESADA")
-        );
-        setShowModal(true);
-    };
-
-    const handleCloseModal = () => {
-        setShowModal(false);
-    };
-
-    const handleFormSubmit = (e) => {
-        e.preventDefault();
+    const fetchVentas = async (page) => {
+        setLoading(true);
         try {
-            Venta.validate(currentVenta);
-            if (formType === "Agregar") {
-                setVentas([...ventas, currentVenta]);
-            } else {
-                setVentas(
-                    ventas.map((v) => (v.id === currentVenta.id ? currentVenta : v))
-                );
-            }
-            handleCloseModal();
+            const data = await ventaService.getPage(page, size);
+            setVentas(data.ventas);
+            setTotal(data.total);
         } catch (error) {
-            alert(error.message);
+            console.error("Error al obtener ventas:", error);
+        } finally {
+            setLoading(false);
         }
     };
 
-    const handleDelete = (id) => {
-        setVentas(ventas.filter((venta) => venta.id !== id));
+    const fetchAdvancedSearchVentas = async (filters, page) => {
+        setLoading(true);
+        try {
+            const data = await ventaService.advancedSearch({
+                ...filters,
+                page,
+                size,
+            });
+            setVentas(data.ventas);
+            setTotal(data.total);
+        } catch (error) {
+            console.error("Error al buscar ventas:", error);
+        } finally {
+            setLoading(false);
+        }
     };
+
+    const handleAdvancedSearch = (filters) => {
+        setIsAdvancedSearch(true);
+        setAdvancedFilters(filters);
+        setCurrentPage(1);
+        fetchAdvancedSearchVentas(filters, 1);
+    };
+
+    const handleClearSearch = () => {
+        setIsAdvancedSearch(false);
+        setAdvancedFilters(null);
+        setCurrentPage(1);
+        fetchVentas(1);
+    };
+
+    const handleNextPage = () => {
+        if (currentPage * size < total) {
+            const nextPage = currentPage + 1;
+            setCurrentPage(nextPage);
+            if (isAdvancedSearch && advancedFilters) {
+                fetchAdvancedSearchVentas(advancedFilters, nextPage);
+            } else {
+                fetchVentas(nextPage);
+            }
+        }
+    };
+
+    const handlePreviousPage = () => {
+        if (currentPage > 1) {
+            const prevPage = currentPage - 1;
+            setCurrentPage(prevPage);
+            if (isAdvancedSearch && advancedFilters) {
+                fetchAdvancedSearchVentas(advancedFilters, prevPage);
+            } else {
+                fetchVentas(prevPage);
+            }
+        }
+    };
+
+    const exportToPDF = async () => {
+        const doc = new jsPDF("landscape");
+        try {
+            const data = await ventaService.advancedSearch({
+                ...advancedFilters,
+                page: 1,
+                size: 10000,
+            });
+            const ventasToExport = data.ventas;
+
+            doc.setFontSize(12);
+            doc.text("Representaciones Hidalgo", 10, 10);
+            doc.text("Av. América Norte", 10, 15);
+
+            const now = new Date();
+            doc.text(`Fecha: ${now.toLocaleDateString("es-PE")}`, 250, 10);
+            doc.text(`Hora: ${now.toLocaleTimeString("es-PE")}`, 250, 15);
+
+            doc.setFontSize(14);
+            doc.text("Listado de Ventas", 148, 30, { align: "center" });
+
+            if (advancedFilters) {
+                doc.setFontSize(10);
+                doc.text("Filtros aplicados:", 10, 40);
+                let filterText = "";
+                if (advancedFilters.fromDate) filterText += `Desde: ${advancedFilters.fromDate} `;
+                if (advancedFilters.toDate) filterText += `Hasta: ${advancedFilters.toDate} `;
+                if (advancedFilters.fromPrice) filterText += `Precio desde: S/${advancedFilters.fromPrice} `;
+                if (advancedFilters.toPrice) filterText += `Precio hasta: S/${advancedFilters.toPrice} `;
+                if (advancedFilters.clientRUC) filterText += `RUC Cliente: ${advancedFilters.clientRUC} `;
+                if (advancedFilters.status) filterText += `Estado: ${advancedFilters.status} `;
+                doc.text(filterText, 10, 45);
+            }
+
+            const tableColumn = [
+                "N° Doc",
+                "RUC Cliente",
+                "Cliente",
+                "Fecha",
+                "Tipo Movimiento",
+                "Tipo Venta",
+                "Valor Venta",
+                "IGV",
+                "Total",
+                "Estado",
+            ];
+            const tableRows = ventasToExport.map((venta) => [
+                venta.num_docum || "N/A",
+                venta.ruc_cliente || "N/A",
+                venta.cliente || "N/A",
+                new Date(venta.fecha).toLocaleDateString("es-PE"),
+                venta.tipo_movimiento || "N/A",
+                venta.tipo_venta || "N/A",
+                (parseFloat(venta.valor_de_venta) || 0).toFixed(2),
+                (parseFloat(venta.igv) || 0).toFixed(2),
+                (parseFloat(venta.total) || 0).toFixed(2),
+                venta.estado || "N/A",
+            ]);
+
+            doc.autoTable({
+                startY: 50,
+                head: [tableColumn],
+                body: tableRows,
+                theme: "grid",
+                headStyles: {
+                    fillColor: [211, 211, 211],
+                    textColor: [0, 0, 0],
+                    fontSize: 10,
+                },
+                bodyStyles: {
+                    fontSize: 8,
+                    textColor: [0, 0, 0],
+                },
+            });
+
+            doc.save("listado_ventas.pdf");
+        } catch (error) {
+            console.error("Error al generar el PDF:", error);
+        }
+    };
+
+    useEffect(() => {
+        fetchVentas(currentPage);
+    }, []);
 
     return (
         <div style={styles.container}>
-            <h1 style={styles.title}>Lista de Ventas</h1>
-            <div style={styles.searchContainer}>
-                <input
-                    type="text"
-                    placeholder="Buscar venta..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    style={styles.searchInput}
-                />
-                <button onClick={() => handleOpenModal("Agregar")} style={styles.addButton}>
-                    Agregar Venta
+            <div style={styles.header}>
+                <h1 style={styles.title}>Listado de Ventas</h1>
+                <button style={styles.pdfButton} onClick={exportToPDF}>
+                    🖨️ Generar PDF
                 </button>
             </div>
-            <table style={styles.table}>
-                <thead>
-                <tr style={styles.tableHeader}>
-                    <th>ID</th>
-                    <th>Fecha</th>
-                    <th>Tipo Movimiento</th>
-                    <th>Tipo Venta</th>
-                    <th>Número Comprobante</th>
-                    <th>Cliente</th>
-                    <th>Valor de Venta</th>
-                    <th>IGV</th>
-                    <th>Total</th>
-                    <th>Estado</th>
-                    <th>Acciones</th>
-                </tr>
-                </thead>
-                <tbody>
-                {filteredVentas.map((venta) => (
-                    <tr key={venta.id} style={styles.tableRow}>
-                        <td style={styles.tableCell}>{venta.id}</td>
-                        <td style={styles.tableCell}>{venta.fecha}</td>
-                        <td style={styles.tableCell}>{venta.tipoMovimiento}</td>
-                        <td style={styles.tableCell}>{venta.tipoVenta}</td>
-                        <td style={styles.tableCell}>{venta.numeroComprobante}</td>
-                        <td style={styles.tableCell}>{venta.cliente}</td>
-                        <td style={styles.tableCell}>{venta.valorVenta.toFixed(2)}</td>
-                        <td style={styles.tableCell}>{venta.igv.toFixed(2)}</td>
-                        <td style={styles.tableCell}>{venta.total.toFixed(2)}</td>
-                        <td
-                            style={{
-                                ...styles.tableCell,
-                                color: venta.estado === "PROCESADA" ? "green" : "red",
-                                fontWeight: "bold",
-                            }}
-                        >
-                            {venta.estado}
-                        </td>
-                        <td style={styles.tableCell}>
-                            <button
-                                onClick={() => handleOpenModal("Editar", venta)}
-                                style={styles.editButton}
-                            >
-                                Editar
-                            </button>
-                            <button
-                                onClick={() => handleDelete(venta.id)}
-                                style={styles.deleteButton}
-                            >
-                                Eliminar
-                            </button>
-                        </td>
+            <VentasAdvancedSearch onSearch={handleAdvancedSearch} onClear={handleClearSearch} />
+            {loading ? (
+                <p style={styles.loading}>Cargando...</p>
+            ) : (
+                <table style={styles.table}>
+                    <thead>
+                    <tr style={styles.tableHeader}>
+                        <th style={styles.tableCell}>N° Doc</th>
+                        <th style={styles.tableCell}>RUC Cliente</th>
+                        <th style={styles.tableCell}>Cliente</th>
+                        <th style={styles.tableCell}>Fecha</th>
+                        <th style={styles.tableCell}>Tipo Movimiento</th>
+                        <th style={styles.tableCell}>Tipo Venta</th>
+                        <th style={styles.tableCell}>Valor Venta</th>
+                        <th style={styles.tableCell}>IGV</th>
+                        <th style={styles.tableCell}>Total</th>
+                        <th style={styles.tableCell}>Estado</th>
                     </tr>
-                ))}
-                </tbody>
-            </table>
-            {showModal && (
-                <div style={styles.modalOverlay}>
-                    <div style={styles.modal}>
-                        <h2>{formType} Venta</h2>
-                        <VentaForm
-                            venta={currentVenta}
-                            setVenta={setCurrentVenta}
-                            onSubmit={handleFormSubmit}
-                            onCancel={handleCloseModal}
-                        />
-                    </div>
-                </div>
+                    </thead>
+                    <tbody>
+                    {ventas.map((venta, index) => (
+                        <tr key={index} style={styles.tableRow}>
+                            <td style={styles.tableCell}>{venta.num_docum}</td>
+                            <td style={styles.tableCell}>{venta.ruc_cliente}</td>
+                            <td style={styles.tableCell}>{venta.cliente}</td>
+                            <td style={styles.tableCell}>
+                                {new Date(venta.fecha).toLocaleDateString()}
+                            </td>
+                            <td style={styles.tableCell}>{venta.tipo_movimiento}</td>
+                            <td style={styles.tableCell}>{venta.tipo_venta}</td>
+                            <td style={styles.tableCell}>{venta.valor_de_venta}</td>
+                            <td style={styles.tableCell}>{venta.igv}</td>
+                            <td style={styles.tableCell}>{venta.total}</td>
+                            <td
+                                style={{
+                                    ...styles.tableCell,
+                                    color: venta.estado === "COMPLETADO" ? "green" : "red",
+                                    fontWeight: "bold",
+                                }}
+                            >
+                                {venta.estado}
+                            </td>
+                        </tr>
+                    ))}
+                    </tbody>
+                </table>
             )}
+            <div style={styles.pagination}>
+                <button
+                    onClick={handlePreviousPage}
+                    disabled={currentPage === 1}
+                    style={styles.button}
+                >
+                    Anterior
+                </button>
+                <span style={styles.pageIndicator}>
+                    Página {currentPage} de {Math.ceil(total / size)}
+                </span>
+                <button
+                    onClick={handleNextPage}
+                    disabled={currentPage * size >= total}
+                    style={styles.button}
+                >
+                    Siguiente
+                </button>
+            </div>
         </div>
     );
-};
+}
 
 const styles = {
     container: {
@@ -174,26 +256,12 @@ const styles = {
         marginBottom: "15px",
         fontFamily: "'PT Sans Narrow', sans-serif",
         fontSize: "50px",
+        textAlign: "center",
     },
-    searchContainer: {
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: "20px",
-    },
-    searchInput: {
-        width: "80%",
-        padding: "10px",
-        border: "1px solid #ccc",
-        borderRadius: "5px",
-    },
-    addButton: {
-        padding: "10px 20px",
-        backgroundColor: "#524b4a",
-        color: "white",
-        border: "none",
-        cursor: "pointer",
-        borderRadius: "5px",
+    loading: {
+        textAlign: "center",
+        fontSize: "18px",
+        fontWeight: "bold",
     },
     table: {
         width: "100%",
@@ -201,6 +269,7 @@ const styles = {
         marginTop: "20px",
         backgroundColor: "white",
         borderRadius: "8px",
+        overflow: "hidden",
         boxShadow: "0px 4px 6px rgba(0, 0, 0, 0.1)",
     },
     tableHeader: {
@@ -214,40 +283,41 @@ const styles = {
     tableCell: {
         padding: "15px 10px",
         textAlign: "left",
+        fontSize: "14px",
     },
-    editButton: {
-        backgroundColor: "#ffc107",
-        color: "black",
-        border: "none",
-        padding: "8px 16px",
-        cursor: "pointer",
-        borderRadius: "5px",
-        marginRight: "5px",
+    header: {
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
     },
-    deleteButton: {
-        backgroundColor: "#dc3545",
+    pdfButton: {
+        padding: "10px 20px",
+        backgroundColor: "#524b4a",
         color: "white",
         border: "none",
-        padding: "8px 16px",
-        cursor: "pointer",
         borderRadius: "5px",
+        cursor: "pointer",
+        fontWeight: "bold",
     },
-    modalOverlay: {
-        position: "fixed",
-        top: 0,
-        left: 0,
-        width: "100%",
-        height: "100%",
-        backgroundColor: "rgba(0, 0, 0, 0.5)",
+    pagination: {
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
+        marginTop: "20px",
+        gap: "10px",
     },
-    modal: {
-        backgroundColor: "white",
-        padding: "30px",
-        borderRadius: "8px",
-        width: "400px",
+    button: {
+        padding: "10px 20px",
+        backgroundColor: "#524b4a",
+        color: "white",
+        border: "none",
+        borderRadius: "5px",
+        cursor: "pointer",
+        fontWeight: "bold",
+    },
+    pageIndicator: {
+        fontSize: "16px",
+        fontWeight: "bold",
     },
 };
 
