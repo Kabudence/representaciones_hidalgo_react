@@ -49,7 +49,7 @@ const Navbar = () => {
     return (
         <>
             <nav style={styles.navbar}>
-                <div style={styles.logo}>ICM</div>
+                <div style={styles.logo}>HIDALGO</div>
                 <ul style={styles.links}>
                     <li><a href="/" style={styles.linkItem}>Home</a></li>
                     <li><a href="/clientes" style={styles.linkItem}>Clientes</a></li>
@@ -59,6 +59,7 @@ const Navbar = () => {
                     <li><a href="/productos" style={styles.linkItem}>Productos</a></li>
                     <li><a href="/empleados" style={styles.linkItem}>Empleados</a></li>
                     <li><a href="/lineas" style={styles.linkItem}>Lineas</a></li>
+                    <li><a href="/clases" style={styles.linkItem}>Clases</a></li>
                 </ul>
                 <div style={styles.userIcon}>
                     <FaUser />
