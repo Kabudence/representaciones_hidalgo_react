@@ -1,9 +1,9 @@
-// Providers.jsx
 import { useState, useEffect } from "react";
 import Provider from "../models/Provider";
 import ProviderForm from "../components/ProviderForm";
 import Pagination from "../components/Pagination";
 import providerService from "../services/providerService";
+import { useNavigate } from "react-router-dom";
 
 const Providers = () => {
     const [providers, setProviders] = useState([]);
@@ -13,34 +13,79 @@ const Providers = () => {
     const [searchTerm, setSearchTerm] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
     const [loading, setLoading] = useState(true);
+    const [isAuthorized, setIsAuthorized] = useState(null);
 
     const itemsPerPage = 10;
+    const navigate = useNavigate(); // Hook para redirección
 
     useEffect(() => {
-        providerService
-            .getAll()
-            .then((data) => {
-                const providerObjects = data.map(
-                    (p) =>
-                        new Provider(
-                            p.ruc,
-                            p.nomproveedor,
-                            p.direccion,
-                            p.telefono,
-                            p.celular,
-                            p.contacto,
-                            p.correo,
-                            p.estado
-                        )
-                );
-                setProviders(providerObjects);
-                setLoading(false);
-            })
-            .catch((error) => {
-                console.error("Error fetching providers:", error);
-                setLoading(false);
-            });
-    }, []);
+        // Intentamos obtener authData desde sessionStorage
+        const storedAuthData = sessionStorage.getItem("authData");
+        console.log("SessionStorage authData:", storedAuthData);
+
+        if (storedAuthData) {
+            try {
+                const parsedAuthData = JSON.parse(storedAuthData);
+                console.log("AuthData parseado:", parsedAuthData);
+                const roleValue = parsedAuthData.role
+                    ? parsedAuthData.role.trim().toLowerCase()
+                    : "";
+                console.log("Rol obtenido:", roleValue);
+
+                if (roleValue === "admin") {
+                    setIsAuthorized(true);
+                    console.log("Acceso permitido: Usuario admin");
+                } else {
+                    console.warn("Acceso denegado: Usuario no es admin");
+                    setIsAuthorized(false);
+                    navigate("/no-autorizado", { replace: true });
+                }
+            } catch (error) {
+                console.error("Error parseando authData:", error);
+                setIsAuthorized(false);
+                navigate("/login", { replace: true });
+            }
+        } else {
+            console.warn("No se encontró authData en sessionStorage");
+            setIsAuthorized(false);
+            navigate("/login", { replace: true });
+        }
+    }, [navigate]);
+
+    // Solo cargamos los proveedores si el usuario está autorizado (isAuthorized === true)
+    useEffect(() => {
+        if (isAuthorized) {
+            providerService
+                .getAll()
+                .then((data) => {
+                    const providerObjects = data.map(
+                        (p) =>
+                            new Provider(
+                                p.ruc,
+                                p.nomproveedor,
+                                p.direccion,
+                                p.telefono,
+                                p.celular,
+                                p.contacto,
+                                p.correo,
+                                p.estado
+                            )
+                    );
+                    console.log("Proveedores obtenidos:", providerObjects);
+                    setProviders(providerObjects);
+                    setLoading(false);
+                })
+                .catch((error) => {
+                    console.error("Error fetching providers:", error);
+                    setLoading(false);
+                });
+        }
+    }, [isAuthorized]);
+
+    // Evitar que se renderice la UI antes de verificar autenticación
+    if (isAuthorized === null) {
+        return <div>Cargando autenticación...</div>;
+    }
 
     const filteredProviders = providers.filter(
         (provider) =>
@@ -79,7 +124,7 @@ const Providers = () => {
                 celular: providerData.celular,
                 contacto: providerData.contacto,
                 correo: providerData.correo,
-                estado: providerData.estado, // Estado ya numérico
+                estado: providerData.estado,
             };
 
             if (formType === "Agregar") {
@@ -159,10 +204,7 @@ const Providers = () => {
                     onChange={(e) => setSearchTerm(e.target.value)}
                     style={styles.searchInput}
                 />
-                <button
-                    onClick={() => handleOpenModal("Agregar")}
-                    style={styles.addButton}
-                >
+                <button onClick={() => handleOpenModal("Agregar")} style={styles.addButton}>
                     Agregar Proveedor
                 </button>
             </div>

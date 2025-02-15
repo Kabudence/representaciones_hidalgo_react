@@ -4,12 +4,14 @@ const productService = {
     getAll: async () => {
         try {
             const response = await api.get('/productos');
-            return response.data; // Retorna los datos obtenidos
+            console.log("Respuesta de la API:", response.data);
+            return response.data;
         } catch (error) {
             console.error('Error fetching products:', error);
             throw error;
         }
     },
+
 
     create: async (product) => {
         try {
