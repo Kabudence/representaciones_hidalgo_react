@@ -4,6 +4,7 @@ import Employee from "../models/Employee";
 import EmployeeForm from "../components/EmployeeForm.jsx";
 import Pagination from "../components/Pagination";
 import employeeService from "../services/employeeService";
+import {useNavigate} from "react-router-dom";
 
 const Employees = () => {
     const [employees, setEmployees] = useState([]);
@@ -13,33 +14,65 @@ const Employees = () => {
     const [searchTerm, setSearchTerm] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
     const [loading, setLoading] = useState(true);
-
+    const [isAuthorized, setIsAuthorized] = useState(false);
+    const navigate = useNavigate();
     const itemsPerPage = 10;
 
-    useEffect(() => {
-        employeeService.getAll()
-            .then((data) => {
-                const employeeObjects = data.map(
-                    (e) =>
-                        new Employee(
-                            e.idvend,
-                            e.nomvendedor,
-                            e.direccion,
-                            e.telefono,
-                            e.correo,
-                            e.idemp,
-                            e.estado
-                        )
-                );
-                setEmployees(employeeObjects);
-                setLoading(false);
-            })
-            .catch((error) => {
-                console.error("Error fetching employees:", error);
-                setLoading(false);
-            });
-    }, []);
 
+    useEffect(() => {
+        // Obtener authData desde sessionStorage
+        const storedAuthData = sessionStorage.getItem("authData");
+
+        if (storedAuthData) {
+            try {
+                const parsedAuthData = JSON.parse(storedAuthData);
+                console.log("AuthData cargado:", parsedAuthData);
+
+                if (parsedAuthData.role === "admin") {
+                    setIsAuthorized(true);
+                } else {
+                    console.warn("Acceso denegado: Usuario no es admin");
+                    navigate("/no-autorizado");
+                }
+            } catch (error) {
+                console.error("Error parseando authData:", error);
+                navigate("/login");
+            }
+        } else {
+            console.warn("No se encontró authData en sessionStorage");
+            navigate("/login");
+        }
+    }, [navigate]);
+
+    useEffect(() => {
+        if (isAuthorized) {
+            employeeService.getAll()
+                .then((data) => {
+                    const employeeObjects = data.map(
+                        (e) =>
+                            new Employee(
+                                e.idvend,
+                                e.nomvendedor,
+                                e.direccion,
+                                e.telefono,
+                                e.correo,
+                                e.idemp,
+                                e.estado
+                            )
+                    );
+                    setEmployees(employeeObjects);
+                    setLoading(false);
+                })
+                .catch((error) => {
+                    console.error("Error fetching employees:", error);
+                    setLoading(false);
+                });
+        }
+    }, [isAuthorized]);
+
+    if (!isAuthorized) {
+        return <div>Cargando autenticación...</div>;
+    }
     const filteredEmployees = employees.filter(
         (employee) =>
             employee.nombre.toLowerCase().includes(searchTerm.toLowerCase())
