@@ -3,6 +3,7 @@ import Clase from "../models/Clase";
 import ClaseForm from "../components/ClaseForm";
 import Pagination from "../components/Pagination";
 import claseService from "../services/claseService";
+import {useNavigate} from "react-router-dom";
 
 const Clases = () => {
     const [clases, setClases] = useState([]);
@@ -11,18 +12,50 @@ const Clases = () => {
     const [currentClase, setCurrentClase] = useState(null);
     const [searchTerm, setSearchTerm] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
+    const [isAuthorized, setIsAuthorized] = useState(false);
 
+    const navigate = useNavigate();
     const itemsPerPage = 10;
 
     useEffect(() => {
-        claseService
-            .getAll()
-            .then((data) => {
-                console.log("Clases -> useEffect -> data:", data);
-                setClases(data);
-            })
-            .catch((err) => console.error("Error fetching clases:", err));
-    }, []);
+        // Obtener authData desde sessionStorage
+        const storedAuthData = sessionStorage.getItem("authData");
+        if (storedAuthData) {
+            try {
+                const parsedAuthData = JSON.parse(storedAuthData);
+                console.log("AuthData cargado:", parsedAuthData);
+
+                if (parsedAuthData.role === "admin") {
+                    setIsAuthorized(true); // Usuario autorizado
+                } else {
+                    console.warn("Acceso denegado: Usuario no es admin");
+                    navigate("/no-autorizado"); // Redirigir si no es admin
+                }
+            } catch (error) {
+                console.error("Error parseando authData:", error);
+                navigate("/login"); // Si hay error, enviarlo al login
+            }
+        } else {
+            console.warn("No se encontró authData en sessionStorage");
+            navigate("/login"); // Si no hay authData, redirigir al login
+        }
+
+        // Si el usuario es admin, cargar las clases
+        if (isAuthorized) {
+            claseService
+                .getAll()
+                .then((data) => {
+                    console.log("Clases -> useEffect -> data:", data);
+                    setClases(data);
+                })
+                .catch((err) => console.error("Error fetching clases:", err));
+        }
+    }, [isAuthorized, navigate]);
+
+    // Si el usuario no está autorizado, no renderizar la página
+    if (!isAuthorized) {
+        return <div>Cargando...</div>;
+    }
 
     // Filtrado según searchTerm
     const filteredClases = clases.filter((clase) =>
