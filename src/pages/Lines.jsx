@@ -3,6 +3,7 @@ import Line from "../models/Line";
 import LineForm from "../components/LineForm";
 import Pagination from "../components/Pagination";
 import lineService from "../services/lineService";
+import {useNavigate} from "react-router-dom";
 
 const Lines = () => {
     const [lines, setLines] = useState([]);
@@ -11,19 +12,50 @@ const Lines = () => {
     const [currentLine, setCurrentLine] = useState(null);
     const [searchTerm, setSearchTerm] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
+    const [isAuthorized, setIsAuthorized] = useState(false);
 
     const itemsPerPage = 10;
+    const navigate = useNavigate(); // Hook para redirección
 
     useEffect(() => {
-        lineService
-            .getAll()
-            .then((data) => {
-                console.log("Lines -> useEffect -> data:", data);
-                setLines(data);
-            })
-            .catch((err) => console.error("Error fetching lines:", err));
-    }, []);
+        // Obtener authData desde sessionStorage
+        const storedAuthData = sessionStorage.getItem("authData");
+        if (storedAuthData) {
+            try {
+                const parsedAuthData = JSON.parse(storedAuthData);
+                console.log("AuthData cargado:", parsedAuthData);
 
+                if (parsedAuthData.role === "admin") {
+                    setIsAuthorized(true); // Usuario autorizado
+                } else {
+                    console.warn("Acceso denegado: Usuario no es admin");
+                    navigate("/no-autorizado"); // Redirigir si no es admin
+                }
+            } catch (error) {
+                console.error("Error parseando authData:", error);
+                navigate("/login"); // Si hay error, enviarlo al login
+            }
+        } else {
+            console.warn("No se encontró authData en sessionStorage");
+            navigate("/login"); // Si no hay authData, redirigir al login
+        }
+
+        // Si el usuario es admin, cargar las líneas
+        if (isAuthorized) {
+            lineService
+                .getAll()
+                .then((data) => {
+                    console.log("Lines -> useEffect -> data:", data);
+                    setLines(data);
+                })
+                .catch((err) => console.error("Error fetching lines:", err));
+        }
+    }, [isAuthorized, navigate]);
+
+    // Si el usuario no está autorizado, no renderizar la página
+    if (!isAuthorized) {
+        return <div>Cargando...</div>;
+    }
     // Filtrado según searchTerm
     const filteredLines = lines.filter((line) =>
         line.nombre.toLowerCase().includes(searchTerm.toLowerCase())

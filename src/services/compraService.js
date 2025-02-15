@@ -21,7 +21,18 @@ const getAdvancedSearch = async (filters) => {
     }
 };
 
+const createCompra = async (compraData) => {
+    try {
+        const response = await api.post(`/regmovcab/create-compra`, compraData);
+        return response.data;
+    } catch (error) {
+        console.error("Error al crear la compra:", error);
+        throw error;
+    }
+};
+
 export default {
     getPaginatedCompras,
     getAdvancedSearch,
+    createCompra,
 };
