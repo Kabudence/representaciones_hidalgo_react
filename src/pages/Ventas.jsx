@@ -3,6 +3,9 @@ import ventaService from "../services/ventaService";
 import VentasAdvancedSearch from "../components/VentasAdvancedSearch.jsx";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
+import moment from "moment-timezone";
+import { useNavigate } from "react-router-dom";
+import ShowUtilidadesComponent from "../components/ShowUtilidadesComponent"; // Asegúrate de tener este componente
 
 function Ventas() {
     const [ventas, setVentas] = useState([]);
@@ -12,6 +15,39 @@ function Ventas() {
     const [loading, setLoading] = useState(false);
     const [isAdvancedSearch, setIsAdvancedSearch] = useState(false);
     const [advancedFilters, setAdvancedFilters] = useState(null);
+    const [isAuthorized, setIsAuthorized] = useState(false);
+    const [showUtilidades, setShowUtilidades] = useState(false);
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        // Obtener authData desde sessionStorage
+        const storedAuthData = sessionStorage.getItem("authData");
+        if (storedAuthData) {
+            try {
+                const parsedAuthData = JSON.parse(storedAuthData);
+                console.log("AuthData cargado:", parsedAuthData);
+
+                if (parsedAuthData.role === "admin") {
+                    setIsAuthorized(true);
+                } else {
+                    console.warn("Acceso denegado: Usuario no es admin");
+                    navigate("/no-autorizado");
+                }
+            } catch (error) {
+                console.error("Error parseando authData:", error);
+                navigate("/login");
+            }
+        } else {
+            console.warn("No se encontró authData en sessionStorage");
+            navigate("/login");
+        }
+    }, [navigate]);
+
+    useEffect(() => {
+        if (isAuthorized) {
+            fetchVentas(currentPage);
+        }
+    }, [isAuthorized, currentPage]);
 
     const fetchVentas = async (page) => {
         setLoading(true);
@@ -106,12 +142,18 @@ function Ventas() {
                 doc.setFontSize(10);
                 doc.text("Filtros aplicados:", 10, 40);
                 let filterText = "";
-                if (advancedFilters.fromDate) filterText += `Desde: ${advancedFilters.fromDate} `;
-                if (advancedFilters.toDate) filterText += `Hasta: ${advancedFilters.toDate} `;
-                if (advancedFilters.fromPrice) filterText += `Precio desde: S/${advancedFilters.fromPrice} `;
-                if (advancedFilters.toPrice) filterText += `Precio hasta: S/${advancedFilters.toPrice} `;
-                if (advancedFilters.clientRUC) filterText += `RUC Cliente: ${advancedFilters.clientRUC} `;
-                if (advancedFilters.status) filterText += `Estado: ${advancedFilters.status} `;
+                if (advancedFilters.fromDate)
+                    filterText += `Desde: ${advancedFilters.fromDate} `;
+                if (advancedFilters.toDate)
+                    filterText += `Hasta: ${advancedFilters.toDate} `;
+                if (advancedFilters.fromPrice)
+                    filterText += `Precio desde: S/${advancedFilters.fromPrice} `;
+                if (advancedFilters.toPrice)
+                    filterText += `Precio hasta: S/${advancedFilters.toPrice} `;
+                if (advancedFilters.clientRUC)
+                    filterText += `RUC Cliente: ${advancedFilters.clientRUC} `;
+                if (advancedFilters.status)
+                    filterText += `Estado: ${advancedFilters.status} `;
                 doc.text(filterText, 10, 45);
             }
 
@@ -170,11 +212,22 @@ function Ventas() {
         <div style={styles.container}>
             <div style={styles.header}>
                 <h1 style={styles.title}>Listado de Ventas</h1>
-                <button style={styles.pdfButton} onClick={exportToPDF}>
-                    🖨️ Generar PDF
-                </button>
+                <div>
+                    <button style={styles.pdfButton} onClick={exportToPDF}>
+                        🖨️ Generar PDF
+                    </button>
+                    <button
+                        style={{ ...styles.pdfButton, marginLeft: "10px" }}
+                        onClick={() => setShowUtilidades(true)}
+                    >
+                        Utilidades
+                    </button>
+                </div>
             </div>
-            <VentasAdvancedSearch onSearch={handleAdvancedSearch} onClear={handleClearSearch} />
+            <VentasAdvancedSearch
+                onSearch={handleAdvancedSearch}
+                onClear={handleClearSearch}
+            />
             {loading ? (
                 <p style={styles.loading}>Cargando...</p>
             ) : (
@@ -200,7 +253,7 @@ function Ventas() {
                             <td style={styles.tableCell}>{venta.ruc_cliente}</td>
                             <td style={styles.tableCell}>{venta.cliente}</td>
                             <td style={styles.tableCell}>
-                                {new Date(venta.fecha).toLocaleDateString()}
+                                {moment.utc(venta.fecha).add(5, "hours").format("YYYY-MM-DD")}
                             </td>
                             <td style={styles.tableCell}>{venta.tipo_movimiento}</td>
                             <td style={styles.tableCell}>{venta.tipo_venta}</td>
@@ -230,8 +283,8 @@ function Ventas() {
                     Anterior
                 </button>
                 <span style={styles.pageIndicator}>
-                    Página {currentPage} de {Math.ceil(total / size)}
-                </span>
+          Página {currentPage} de {Math.ceil(total / size)}
+        </span>
                 <button
                     onClick={handleNextPage}
                     disabled={currentPage * size >= total}
@@ -240,9 +293,28 @@ function Ventas() {
                     Siguiente
                 </button>
             </div>
+            {showUtilidades && (
+                <div style={styles.modalOverlay}>
+                    <div style={styles.modal}>
+                        <button
+                            style={{
+                                ...styles.button,
+                                position: "absolute",
+                                top: "10px",
+                                right: "10px",
+                            }}
+                            onClick={() => setShowUtilidades(false)}
+                        >
+                            Cerrar
+                        </button>
+                        {/* Renderizamos el componente de utilidades */}
+                        <ShowUtilidadesComponent />
+                    </div>
+                </div>
+            )}
         </div>
     );
-}
+};
 
 const styles = {
     container: {
@@ -252,16 +324,34 @@ const styles = {
         maxWidth: "90%",
         borderRadius: "8px",
     },
+    header: {
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: "20px",
+    },
     title: {
-        marginBottom: "15px",
         fontFamily: "'PT Sans Narrow', sans-serif",
         fontSize: "50px",
-        textAlign: "center",
+        margin: 0,
     },
-    loading: {
-        textAlign: "center",
-        fontSize: "18px",
+    pdfButton: {
+        padding: "10px 20px",
+        backgroundColor: "#524b4a",
+        color: "white",
+        border: "none",
+        borderRadius: "5px",
+        cursor: "pointer",
         fontWeight: "bold",
+    },
+    searchContainer: {
+        marginBottom: "20px",
+    },
+    searchInput: {
+        width: "100%",
+        padding: "10px",
+        border: "1px solid #ccc",
+        borderRadius: "5px",
     },
     table: {
         width: "100%",
@@ -285,20 +375,6 @@ const styles = {
         textAlign: "left",
         fontSize: "14px",
     },
-    header: {
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-    },
-    pdfButton: {
-        padding: "10px 20px",
-        backgroundColor: "#524b4a",
-        color: "white",
-        border: "none",
-        borderRadius: "5px",
-        cursor: "pointer",
-        fontWeight: "bold",
-    },
     pagination: {
         display: "flex",
         justifyContent: "center",
@@ -318,6 +394,24 @@ const styles = {
     pageIndicator: {
         fontSize: "16px",
         fontWeight: "bold",
+    },
+    modalOverlay: {
+        position: "fixed",
+        top: 0,
+        left: 0,
+        width: "100%",
+        height: "100%",
+        backgroundColor: "rgba(0, 0, 0, 0.5)",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    modal: {
+        backgroundColor: "white",
+        padding: "30px",
+        borderRadius: "8px",
+        width: "600px",
+        position: "relative",
     },
 };
 

@@ -6,19 +6,8 @@ const ventaService = {
     getAll: async () => {
         // GET /ventas
         const response = await api.get("/ventas");
-        // response.data será un array de objetos como:
-        // {
-        //   "cliente": "...",
-        //   "estado": "...",
-        //   "fecha": "...",
-        //   "igv": "...",
-        //   "num_docum": "...",
-        //   "ruc_cliente": "...",
-        //   "tipo_movimiento": "...",
-        //   "tipo_venta": "...",
-        //   "total": "...",
-        //   "valor_de_venta": "..."
-        // }
+        console.log("Respuesta de la API:", response.data);
+
         return response.data.map((obj) => {
             return new Venta(
                 obj.num_docum,
@@ -38,6 +27,8 @@ const ventaService = {
 
     getPage: async (page = 1, size = 10) => {
         const response = await api.get(`/ventas?page=${page}&size=${size}`);
+        console.log("Respuesta de la API:", response.data);
+
         return response.data; // { ventas: [], total: number }
     },
 
@@ -46,6 +37,10 @@ const ventaService = {
         const response = await api.get(`/ventas/advanced-search?${query}`);
         return response.data;
     },
+
+
 };
+
+
 
 export default ventaService;
