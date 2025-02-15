@@ -57,7 +57,6 @@ api.interceptors.response.use(
                 originalRequest.headers["Authorization"] = `Bearer ${newAccessToken}`;
                 return api(originalRequest);
             } catch (refreshError) {
-                console.error("Error al refrescar el token:", refreshError);
 
                 // Si el refresh falla, cerrar sesión
                 sessionStorage.removeItem("authData");
