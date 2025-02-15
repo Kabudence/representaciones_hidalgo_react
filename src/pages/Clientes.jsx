@@ -3,6 +3,7 @@ import Client from "../models/Client";
 import ClientForm from "../components/ClientForm";
 import Pagination from "../components/Pagination";
 import clientService from "../services/clientService";
+import {useNavigate} from "react-router-dom";
 
 const Clientes = () => {
     const [clients, setClients] = useState([]);
@@ -12,31 +13,58 @@ const Clientes = () => {
     const [searchTerm, setSearchTerm] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
     const [loading, setLoading] = useState(true);
+    const [isAuthorized, setIsAuthorized] = useState(false);
+    const navigate = useNavigate(); // Hook para redirección
 
     const itemsPerPage = 10;
 
     useEffect(() => {
-        clientService.getAll()
-            .then((data) => {
-                // Convertimos los datos en instancias de la clase Client
-                const clientObjects = data.map((c) =>
-                    new Client(
-                        c.idcliente,
-                        c.tdoc,
-                        c.nomcliente,
-                        c.direccion,
-                        c.telefono,
-                        c.estado
-                    )
-                );
-                setClients(clientObjects);
-                setLoading(false);
-            })
-            .catch((error) => {
-                console.error("Error fetching clients:", error);
-                setLoading(false);
-            });
-    }, []);
+        // Obtener authData desde sessionStorage
+        const storedAuthData = sessionStorage.getItem("authData");
+        if (storedAuthData) {
+            try {
+                const parsedAuthData = JSON.parse(storedAuthData);
+                console.log("AuthData cargado:", parsedAuthData);
+
+                if (parsedAuthData.role === "admin") {
+                    setIsAuthorized(true); // Usuario autorizado
+                } else {
+                    console.warn("Acceso denegado: Usuario no es admin");
+                    navigate("/no-autorizado"); // Redirigir si no es admin
+                }
+            } catch (error) {
+                console.error("Error parseando authData:", error);
+                navigate("/login"); // Si hay error, enviarlo al login
+            }
+        } else {
+            console.warn("No se encontró authData en sessionStorage");
+            navigate("/login"); // Si no hay authData, redirigir al login
+        }
+    }, [navigate]);
+
+    useEffect(() => {
+        if (isAuthorized) {
+            clientService.getAll()
+                .then((data) => {
+                    const clientObjects = data.map((c) =>
+                        new Client(
+                            c.idcliente,
+                            c.tdoc,
+                            c.nomcliente,
+                            c.direccion,
+                            c.telefono,
+                            c.estado
+                        )
+                    );
+                    setClients(clientObjects);
+                    setLoading(false);
+                })
+                .catch((error) => {
+                    console.error("Error fetching clients:", error);
+                    setLoading(false);
+                });
+        }
+    }, [isAuthorized]);
 
     const filteredClients = clients.filter(
         (client) =>

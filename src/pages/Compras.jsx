@@ -1,8 +1,12 @@
+// src/components/Compras.jsx
 import { useState, useEffect } from "react";
 import compraService from "../services/compraService";
 import ComprasAdvancedSearch from "../components/ComprasAdvancedSearch";
-import jsPDF from "jspdf"; // Importamos jsPDF para generar PDFs
-import "jspdf-autotable"; // Extensión para tablas en jsPDF
+import CompraForm from "../components/CompraForm";
+import jsPDF from "jspdf";
+import "jspdf-autotable";
+import moment from "moment-timezone";
+import {useNavigate} from "react-router-dom";
 
 const Compras = () => {
     const [compras, setCompras] = useState([]);
@@ -10,6 +14,55 @@ const Compras = () => {
     const [totalPages, setTotalPages] = useState(0);
     const [isLoading, setIsLoading] = useState(false);
     const [filters, setFilters] = useState(null);
+    const [isAuthorized, setIsAuthorized] = useState(null);
+    const navigate = useNavigate();
+    // Estado para controlar la ventana emergente (modal) de "Generar Compra"
+    const [showCompraModal, setShowCompraModal] = useState(false);
+    // Estado inicial para el formulario de compra
+    const [compra, setCompra] = useState({
+        num_docum: "",
+        ruc_cliente: "",
+        ItemList: [{ producto: "", cantidad: "", precio: "", igv: "" }],
+        proveedor: {
+            ruc: "",
+            nomproveedor: "",
+            direccion: "",
+            contacto: "",
+        },
+    });
+    useEffect(() => {
+        // Obtener authData desde sessionStorage
+        const storedAuthData = sessionStorage.getItem("authData");
+
+        if (storedAuthData) {
+            try {
+                const parsedAuthData = JSON.parse(storedAuthData);
+                console.log("AuthData cargado:", parsedAuthData);
+
+                if (parsedAuthData.role === "admin") {
+                    setIsAuthorized(true);
+                } else {
+                    console.warn("Acceso denegado: Usuario no es admin");
+                    setIsAuthorized(false);
+                    navigate("/no-autorizado"); // Redirigir a la página de acceso denegado
+                }
+            } catch (error) {
+                console.error("Error parseando authData:", error);
+                setIsAuthorized(false);
+                navigate("/login"); // Si hay error, redirigir al login
+            }
+        } else {
+            console.warn("No se encontró authData en sessionStorage");
+            setIsAuthorized(false);
+            navigate("/login"); // Si no hay authData, redirigir al login
+        }
+    }, [navigate]);
+
+    useEffect(() => {
+        if (isAuthorized) {
+            fetchCompras(currentPage);
+        }
+    }, [currentPage, filters, isAuthorized]);
 
     const fetchCompras = async (page) => {
         setIsLoading(true);
@@ -40,15 +93,11 @@ const Compras = () => {
     }, [currentPage, filters]);
 
     const handlePrevious = () => {
-        if (currentPage > 1) {
-            setCurrentPage((prev) => prev - 1);
-        }
+        if (currentPage > 1) setCurrentPage((prev) => prev - 1);
     };
 
     const handleNext = () => {
-        if (currentPage < totalPages) {
-            setCurrentPage((prev) => prev + 1);
-        }
+        if (currentPage < totalPages) setCurrentPage((prev) => prev + 1);
     };
 
     const handleSearch = (searchFilters) => {
@@ -62,32 +111,21 @@ const Compras = () => {
     };
 
     const exportToPDF = async (filters) => {
-        const doc = new jsPDF("landscape"); // Cambiar orientación a horizontal (landscape)
-
+        const doc = new jsPDF("landscape");
         try {
-            // Realizamos un GET con los filtros para obtener todos los resultados
-            const data = await compraService.getAdvancedSearch({ ...filters, page: 1, size: 10000 }); // Tamaño grande para obtener todo
+            const data = await compraService.getAdvancedSearch({ ...filters, page: 1, size: 10000 });
             const compras = data.items;
-
-            // Título
             doc.setFontSize(12);
             doc.text("Representaciones Hidalgo", 10, 10);
             doc.text("Av. América Norte", 10, 15);
-
-            // Fecha y hora
             const now = new Date();
             doc.text(`Fecha: ${now.toLocaleDateString("es-PE")}`, 250, 10);
             doc.text(`Hora: ${now.toLocaleTimeString("es-PE")}`, 250, 15);
-
-            // Título del documento
             doc.setFontSize(14);
-            doc.text("Listado de Compras", 148, 30, { align: "center" }); // Centrado
-
-            // Mostrar filtros de búsqueda
+            doc.text("Listado de Compras", 148, 30, { align: "center" });
             if (filters) {
                 doc.setFontSize(10);
                 doc.text("Filtros aplicados:", 10, 40);
-
                 let filterText = "";
                 if (filters.fromDate) filterText += `Desde: ${filters.fromDate} `;
                 if (filters.toDate) filterText += `Hasta: ${filters.toDate} `;
@@ -96,11 +134,8 @@ const Compras = () => {
                 if (filters.providerName) filterText += `Proveedor: ${filters.providerName} `;
                 if (filters.clientRUC) filterText += `RUC Cliente: ${filters.clientRUC} `;
                 if (filters.status) filterText += `Estado: ${filters.status} `;
-
                 doc.text(filterText, 10, 45);
             }
-
-            // Datos de la tabla
             const tableColumn = [
                 "Fecha",
                 "Tipo Movimiento",
@@ -114,64 +149,83 @@ const Compras = () => {
                 "Estado",
             ];
             const tableRows = compras.map((compra) => [
-                new Date(compra.fecha).toLocaleDateString("es-PE"), // Fecha formateada
-                compra.tipo_movimiento || "N/A", // Valor por defecto
+                new Date(compra.fecha).toLocaleDateString("es-PE"),
+                compra.tipo_movimiento || "N/A",
                 compra.tipo_venta || "N/A",
                 compra.num_docum || "N/A",
                 compra.ruc_cliente || "N/A",
                 compra.proveedor || "N/A",
-                (parseFloat(compra.valor_de_venta) || 0).toFixed(2), // Convertir a número y aplicar toFixed
+                (parseFloat(compra.valor_de_venta) || 0).toFixed(2),
                 (parseFloat(compra.igv) || 0).toFixed(2),
                 (parseFloat(compra.total) || 0).toFixed(2),
                 compra.estado || "N/A",
             ]);
-
-
-            // Opciones de la tabla
             doc.autoTable({
                 startY: 50,
                 head: [tableColumn],
                 body: tableRows,
-                theme: "grid", // Usamos el tema 'grid' y personalizamos las líneas
+                theme: "grid",
                 headStyles: {
-                    fillColor: [211, 211, 211], // Fondo plomo (gris claro)
-                    textColor: [0, 0, 0], // Texto negro
+                    fillColor: [211, 211, 211],
+                    textColor: [0, 0, 0],
                     fontSize: 10,
                     lineWidth: 0.5,
-                    lineColor: [0, 0, 0], // Líneas negras en el encabezado
+                    lineColor: [0, 0, 0],
                 },
                 bodyStyles: {
                     fontSize: 8,
-                    textColor: [0, 0, 0], // Negro
-                    lineWidth: 0, // Sin líneas separadoras entre filas
+                    textColor: [0, 0, 0],
+                    lineWidth: 0,
                 },
                 styles: {
                     lineWidth: 0.1,
-                    lineColor: [0, 0, 0], // Líneas negras
+                    lineColor: [0, 0, 0],
                 },
-                tableLineColor: [0, 0, 0], // Líneas en los bordes de la tabla
+                tableLineColor: [0, 0, 0],
                 tableLineWidth: 0.1,
             });
-
-            // Guardar el documento
             doc.save("listado_compras.pdf");
         } catch (error) {
             console.error("Error al generar el PDF:", error);
         }
     };
 
+    const openCompraModal = () => {
+        setShowCompraModal(true);
+    };
+
+    const closeCompraModal = () => {
+        setShowCompraModal(false);
+    };
+
+    const handleSubmitCompra = async (compraData) => {
+        console.log("Enviando compra...", compraData);
+        try {
+            await compraService.createCompra(compraData);
+            closeCompraModal();
+            fetchCompras(currentPage);
+        } catch (error) {
+            console.error("Error al crear la compra:", error);
+        }
+    };
 
     return (
         <div style={styles.container}>
             <div style={styles.header}>
                 <h1 style={styles.title}>Listado de Compras</h1>
-                <button style={styles.pdfButton} onClick={() => exportToPDF(filters)}>
-                    🖨️ Generar PDF
-                </button>
-
-
+                <div>
+                    <button style={styles.pdfButton} onClick={() => exportToPDF(filters)}>
+                        🖨️ Generar PDF
+                    </button>
+                    <button
+                        style={{ ...styles.pdfButton, marginLeft: "10px" }}
+                        onClick={openCompraModal}
+                    >
+                        Generar Compra
+                    </button>
+                </div>
             </div>
-            <ComprasAdvancedSearch onSearch={handleSearch} onClear={handleClear}/>
+            <ComprasAdvancedSearch onSearch={handleSearch} onClear={handleClear} />
             {isLoading ? (
                 <p style={styles.loading}>Cargando...</p>
             ) : (
@@ -194,7 +248,9 @@ const Compras = () => {
                     {compras.length > 0 ? (
                         compras.map((compra, index) => (
                             <tr key={index} style={styles.tableRow}>
-                                <td style={styles.tableCell}>{compra.fecha}</td>
+                                <td style={styles.tableCell}>
+                                    {moment.utc(compra.fecha).add(5, 'hours').format("YYYY-MM-DD")}
+                                </td>
                                 <td style={styles.tableCell}>{compra.tipo_movimiento}</td>
                                 <td style={styles.tableCell}>{compra.tipo_venta}</td>
                                 <td style={styles.tableCell}>{compra.num_docum}</td>
@@ -236,8 +292,8 @@ const Compras = () => {
                     Anterior
                 </button>
                 <span style={styles.pageIndicator}>
-                    Página {currentPage} de {totalPages}
-                </span>
+          Página {currentPage} de {totalPages}
+        </span>
                 <button
                     onClick={handleNext}
                     disabled={currentPage === totalPages}
@@ -249,6 +305,19 @@ const Compras = () => {
                     Siguiente
                 </button>
             </div>
+
+            {showCompraModal && (
+                <div style={styles.modalOverlay}>
+                    <div style={styles.modal}>
+                        <CompraForm
+                            compra={compra}
+                            setCompra={setCompra}
+                            onSubmit={handleSubmitCompra}
+                            onCancel={closeCompraModal}
+                        />
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
@@ -326,6 +395,30 @@ const styles = {
     pageIndicator: {
         fontSize: "16px",
         fontWeight: "bold",
+    },
+    disabledButton: {
+        opacity: 0.5,
+        cursor: "not-allowed",
+    },
+    modalOverlay: {
+        position: "fixed",
+        top: 0,
+        left: 0,
+        width: "100%",
+        height: "100%",
+        backgroundColor: "rgba(0, 0, 0, 0.5)",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        zIndex: 9999,
+    },
+    modal: {
+        backgroundColor: "white",
+        padding: "30px",
+        borderRadius: "8px",
+        width: "400px",
+        maxHeight: "80vh",
+        overflowY: "auto",
     },
 };
 
