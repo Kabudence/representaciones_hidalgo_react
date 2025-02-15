@@ -3,6 +3,9 @@ import Product from "../models/Product";
 import ProductForm from "../components/ProductForm.jsx";
 import Pagination from "../components/Pagination";
 import productService from "../services/productService";
+import Fuse from "fuse.js";
+import jsPDF from "jspdf";
+import "jspdf-autotable";
 
 const Products = () => {
     const [products, setProducts] = useState([]);
@@ -12,17 +15,24 @@ const Products = () => {
     const [searchTerm, setSearchTerm] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
     const [loading, setLoading] = useState(true);
+    const [filteredProducts, setFilteredProducts] = useState([]);
+    const [role, setRole] = useState(null);
 
     const itemsPerPage = 10;
 
     useEffect(() => {
-        console.log("Fetching products...");
+        // Obtener rol del usuario desde localStorage
+        const storedUserData = sessionStorage.getItem("authData");
+        if (storedUserData) {
+            const { role } = JSON.parse(storedUserData);
+            setRole(role);
+        }
+
         productService
             .getAll()
             .then((data) => {
-                console.log("Productos recibidos:", data);
                 const productObjects = data.map((p, index) => ({
-                    id: p.idprod || `Producto-${index + 1}`, // ID único por defecto
+                    id: p.idprod || `Producto-${index + 1}`,
                     nombre: p.nomproducto || "Sin Nombre",
                     unidad_medida: p.umedida || "Sin Unidad",
                     stock_inicial: p.st_ini || 0,
@@ -33,8 +43,8 @@ const Products = () => {
                     modelo: p.modelo || "Sin Modelo",
                     medida: p.medida || "Sin Medida",
                 }));
-                console.log("Productos procesados:", productObjects);
                 setProducts(productObjects);
+                setFilteredProducts(productObjects);
                 setLoading(false);
             })
             .catch((error) => {
@@ -43,21 +53,95 @@ const Products = () => {
             });
     }, []);
 
-    const filteredProducts = products.filter((product) => {
-        const nombre = product.nombre || "";
-        const id = product.id || "";
-        return (
-            nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            id.toLowerCase().includes(searchTerm.toLowerCase())
-        );
-    });
+    // Configuración de Fuse.js para búsqueda flexible
+    const fuseOptions = {
+        includeScore: true,
+        threshold: 0.3,
+        keys: [
+            { name: "nombre", weight: 0.8 },
+            { name: "id", weight: 0.5 },
+            { name: "medida", weight: 0.3 },
+        ],
+        tokenize: true,
+        findAllMatches: true,
+        useExtendedSearch: true,
+    };
+
+    const fuse = new Fuse(products, fuseOptions);
+
+    useEffect(() => {
+        if (searchTerm.trim() === "") {
+            setFilteredProducts(products);
+        } else {
+            const searchWords = searchTerm.split(" ").map(word => `${word}`);
+            const query = searchWords.join(" ");
+            const results = fuse.search(query).map((result) => result.item);
+            setFilteredProducts(results);
+        }
+    }, [searchTerm, products]);
 
     const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
-
     const paginatedProducts = filteredProducts.slice(
         (currentPage - 1) * itemsPerPage,
         currentPage * itemsPerPage
     );
+
+    // Función para generar el PDF de productos
+    const exportToPDF = () => {
+        const doc = new jsPDF("landscape");
+        const now = new Date();
+        doc.setFontSize(12);
+        doc.text("Tu Empresa", 10, 10);
+        doc.text(`Fecha: ${now.toLocaleDateString("es-PE")}`, 250, 10);
+        doc.text(`Hora: ${now.toLocaleTimeString("es-PE")}`, 250, 15);
+        doc.setFontSize(14);
+        doc.text("Listado de Productos", 148, 30, { align: "center" });
+
+        // Para PDF se usa la información completa (admin)
+        const tableColumn = [
+            "ID",
+            "Nombre",
+            "Unidad de Medida",
+            "Stock Inicial",
+            "Stock Actual",
+            "Stock Mínimo",
+            "Precio Costo",
+            "Precio Venta",
+            "Modelo",
+            "Medida",
+        ];
+
+        const tableRows = filteredProducts.map((product) => [
+            product.id,
+            product.nombre,
+            product.unidad_medida,
+            product.stock_inicial,
+            product.stock_actual,
+            product.stock_minimo,
+            product.precio_costo.toFixed(2),
+            product.precio_venta.toFixed(2),
+            product.modelo,
+            product.medida,
+        ]);
+
+        doc.autoTable({
+            startY: 50,
+            head: [tableColumn],
+            body: tableRows,
+            theme: "grid",
+            headStyles: {
+                fillColor: [211, 211, 211],
+                textColor: [0, 0, 0],
+                fontSize: 10,
+            },
+            bodyStyles: {
+                fontSize: 8,
+                textColor: [0, 0, 0],
+            },
+        });
+
+        doc.save("listado_productos.pdf");
+    };
 
     const handleOpenModal = (type, product = null) => {
         setFormType(type);
@@ -133,7 +217,20 @@ const Products = () => {
 
     return (
         <div style={styles.container}>
-            <h1 style={styles.title}>Lista de Productos</h1>
+            {/* Encabezado con el título y botón Generar PDF */}
+            <div style={styles.header}>
+                <h1 style={styles.title}>Lista de Productos</h1>
+                <div>
+                    <button
+                        onClick={exportToPDF}
+                        style={{ ...styles.addButton, marginLeft: "10px" }}
+                    >
+                        Generar PDF
+                    </button>
+                </div>
+            </div>
+
+            {/* Barra de búsqueda con el botón Agregar Producto */}
             <div style={styles.searchContainer}>
                 <input
                     type="text"
@@ -142,55 +239,94 @@ const Products = () => {
                     onChange={(e) => setSearchTerm(e.target.value)}
                     style={styles.searchInput}
                 />
-                <button onClick={() => handleOpenModal("Agregar")} style={styles.addButton}>
+                <button
+                    onClick={() => handleOpenModal("Agregar")}
+                    style={{ ...styles.addButton, marginLeft: "10px" }}
+                >
                     Agregar Producto
                 </button>
             </div>
+
             <table style={styles.table}>
                 <thead>
-                <tr style={styles.tableHeader}>
-                    <th>ID</th>
-                    <th>Nombre</th>
-                    <th>Unidad de Medida</th>
-                    <th>Stock Inicial</th>
-                    <th>Stock Actual</th>
-                    <th>Stock Mínimo</th>
-                    <th>Precio Costo</th>
-                    <th>Precio Venta</th>
-                    <th>Modelo</th>
-                    <th>Medida</th>
-                    <th>Acciones</th>
-                </tr>
+                {role === "admin" ? (
+                    <tr style={styles.tableHeader}>
+                        <th>ID</th>
+                        <th>Nombre</th>
+                        <th>Unidad de Medida</th>
+                        <th>Stock Inicial</th>
+                        <th>Stock Actual</th>
+                        <th>Stock Mínimo</th>
+                        <th>Precio Costo</th>
+                        <th>Precio Venta</th>
+                        <th>Modelo</th>
+                        <th>Medida</th>
+                        <th>Acciones</th>
+                    </tr>
+                ) : (
+                    <tr style={styles.tableHeader}>
+                        <th>Nombre</th>
+                        <th>Modelo</th>
+                        <th>Medida</th>
+                        <th>Stock Actual</th>
+                        <th>Precio Venta</th>
+                        <th>Acciones</th>
+                    </tr>
+                )}
                 </thead>
                 <tbody>
-                {paginatedProducts.map((product, index) => (
-                    <tr key={product.id || `row-${index}`} style={styles.tableRow}>
-                        <td style={styles.tableCell}>{product.id}</td>
-                        <td style={styles.tableCell}>{product.nombre}</td>
-                        <td style={styles.tableCell}>{product.unidad_medida}</td>
-                        <td style={styles.tableCell}>{product.stock_inicial}</td>
-                        <td style={styles.tableCell}>{product.stock_actual}</td>
-                        <td style={styles.tableCell}>{product.stock_minimo}</td>
-                        <td style={styles.tableCell}>{product.precio_costo.toFixed(2)}</td>
-                        <td style={styles.tableCell}>{product.precio_venta.toFixed(2)}</td>
-                        <td style={styles.tableCell}>{product.modelo}</td>
-                        <td style={styles.tableCell}>{product.medida}</td>
-                        <td style={styles.tableCell}>
-                            <button
-                                onClick={() => handleOpenModal("Editar", product)}
-                                style={styles.editButton}
-                            >
-                                Editar
-                            </button>
-                            <button
-                                onClick={() => handleDelete(product.id)}
-                                style={styles.deleteButton}
-                            >
-                                Eliminar
-                            </button>
-                        </td>
-                    </tr>
-                ))}
+                {paginatedProducts.map((product, index) =>
+                    role === "admin" ? (
+                        <tr key={product.id || `row-${index}`} style={styles.tableRow}>
+                            <td style={styles.tableCell}>{product.id}</td>
+                            <td style={styles.tableCell}>{product.nombre}</td>
+                            <td style={styles.tableCell}>{product.unidad_medida}</td>
+                            <td style={styles.tableCell}>{product.stock_inicial}</td>
+                            <td style={styles.tableCell}>{product.stock_actual}</td>
+                            <td style={styles.tableCell}>{product.stock_minimo}</td>
+                            <td style={styles.tableCell}>{product.precio_costo.toFixed(2)}</td>
+                            <td style={styles.tableCell}>{product.precio_venta.toFixed(2)}</td>
+                            <td style={styles.tableCell}>{product.modelo}</td>
+                            <td style={styles.tableCell}>{product.medida}</td>
+                            <td style={styles.tableCell}>
+                                <button
+                                    onClick={() => handleOpenModal("Editar", product)}
+                                    style={styles.editButton}
+                                >
+                                    Editar
+                                </button>
+                                <button
+                                    onClick={() => handleDelete(product.id)}
+                                    style={styles.deleteButton}
+                                >
+                                    Eliminar
+                                </button>
+                            </td>
+                        </tr>
+                    ) : (
+                        <tr key={product.id || `row-${index}`} style={styles.tableRow}>
+                            <td style={styles.tableCell}>{product.nombre}</td>
+                            <td style={styles.tableCell}>{product.modelo}</td>
+                            <td style={styles.tableCell}>{product.medida}</td>
+                            <td style={styles.tableCell}>{product.stock_actual}</td>
+                            <td style={styles.tableCell}>{product.precio_venta.toFixed(2)}</td>
+                            <td style={styles.tableCell}>
+                                <button
+                                    onClick={() => handleOpenModal("Editar", product)}
+                                    style={styles.editButton}
+                                >
+                                    Editar
+                                </button>
+                                <button
+                                    onClick={() => handleDelete(product.id)}
+                                    style={styles.deleteButton}
+                                >
+                                    Eliminar
+                                </button>
+                            </td>
+                        </tr>
+                    )
+                )}
                 </tbody>
             </table>
             <Pagination
@@ -214,6 +350,7 @@ const Products = () => {
         </div>
     );
 };
+
 const styles = {
     container: {
         backgroundColor: "#f2f2f2",
@@ -222,19 +359,24 @@ const styles = {
         maxWidth: "90%",
         borderRadius: "8px",
     },
-    title: {
-        marginBottom: "15px",
-        fontFamily: "'PT Sans Narrow', sans-serif",
-        fontSize: "50px",
-    },
-    searchContainer: {
+    header: {
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
         marginBottom: "20px",
     },
+    title: {
+        fontFamily: "'PT Sans Narrow', sans-serif",
+        fontSize: "50px",
+        margin: 0,
+    },
+    searchContainer: {
+        marginBottom: "20px",
+        display: "flex",
+        alignItems: "center",
+    },
     searchInput: {
-        width: "80%",
+        width: "100%",
         padding: "10px",
         border: "1px solid #ccc",
         borderRadius: "5px",
