@@ -1,5 +1,5 @@
 import React, { useState, useContext } from "react";
-import {AuthContext} from "./AuthContext.jsx";
+import { AuthContext } from "./AuthContext.jsx";
 
 const AuthBox = () => {
     const { login } = useContext(AuthContext);
@@ -7,7 +7,7 @@ const AuthBox = () => {
     const [formData, setFormData] = useState({
         username: "",
         password: "",
-        role: "employee", // Rol por defecto
+        role: "employee",
     });
 
     const toggleAuthMode = () => {
@@ -46,7 +46,17 @@ const AuthBox = () => {
                         role: data.role,
                         username: data.username,
                     });
+
+                    sessionStorage.setItem("authData", JSON.stringify({
+                        token: data.access_token,
+                        role: data.role,
+                        username: data.username,
+                    }));
+
                     alert("Inicio de sesión exitoso");
+
+                    // 🔥 Recargar la página para actualizar la UI
+                    window.location.reload();
                 }
             } else {
                 alert(data.msg || "Ocurrió un error");

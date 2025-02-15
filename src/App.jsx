@@ -14,15 +14,14 @@ import Clases from "./pages/Clases.jsx";
 import { useContext } from "react";
 import { AuthContext, AuthProvider } from "./components/auth-components/AuthContext.jsx";
 import PropTypes from "prop-types";
+import NoAutorizado from "./pages/NoAutorizado.jsx";
 
 const ProtectedRoute = ({ children }) => {
     const { authData, isAuthDataLoaded } = useContext(AuthContext);
 
     // Logs para depuración de ProtectedRoute
-    console.log("[ProtectedRoute] authData recibido:", authData);
 
     if (!isAuthDataLoaded) {
-        console.log("[ProtectedRoute] Cargando datos de autenticación...");
         return <div>Cargando autenticación...</div>; // Puedes mostrar un spinner aquí si lo prefieres
     }
 
@@ -31,7 +30,6 @@ const ProtectedRoute = ({ children }) => {
         return <Navigate to="/" replace />;
     }
 
-    console.log("[ProtectedRoute] Autorizado para acceder a la ruta.");
     return children;
 };
 
@@ -46,6 +44,14 @@ const App = () => {
                             {/* Ruta pública */}
                             <Route path="/" element={<Home />} />
 
+                            <Route
+                                path="/no-autorizado"
+                                element={
+                                    <ProtectedRoute>
+                                        <NoAutorizado />
+                                    </ProtectedRoute>
+                                }
+                            />
                             {/* Rutas protegidas */}
                             <Route
                                 path="/clientes"
@@ -55,11 +61,12 @@ const App = () => {
                                     </ProtectedRoute>
                                 }
                             />
+
                             <Route
                                 path="/proveedores"
                                 element={
                                     <ProtectedRoute>
-                                        <Providers />
+                                        <Providers/>
                                     </ProtectedRoute>
                                 }
                             />
