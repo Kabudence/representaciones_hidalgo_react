@@ -1,31 +1,22 @@
-
+// src/components/CompraForm.jsx
+import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types";
+import AddItem from "./AddItem.jsx";
 
 const CompraForm = ({ compra, setCompra, onSubmit, onCancel }) => {
+    const [showAddItemModal, setShowAddItemModal] = useState(false);
+
+    // Asegurarse de que ItemList comience como arreglo vacío si no existe
+    useEffect(() => {
+        if (!compra.ItemList) {
+            setCompra({ ...compra, ItemList: [] });
+        }
+    }, [compra, setCompra]);
+
     // Manejo de cambios para los campos de la cabecera de la compra
     const handleChange = (e) => {
         const { name, value } = e.target;
         setCompra({ ...compra, [name]: value });
-    };
-
-    // Manejo de cambios para cada item de la lista
-    const handleItemChange = (index, e) => {
-        const { name, value } = e.target;
-        const newItemList = compra.ItemList.map((item, idx) =>
-            idx === index ? { ...item, [name]: value } : item
-        );
-        setCompra({ ...compra, ItemList: newItemList });
-    };
-
-    // Agregar un nuevo item al ItemList
-    const addItem = () => {
-        setCompra({
-            ...compra,
-            ItemList: [
-                ...compra.ItemList,
-                { producto: "", cantidad: "", precio: "", igv: "" },
-            ],
-        });
     };
 
     // Manejo de cambios para los datos del proveedor
@@ -37,14 +28,60 @@ const CompraForm = ({ compra, setCompra, onSubmit, onCancel }) => {
         });
     };
 
+    // Función para agregar un ítem (recibido desde AddItem)
+    const handleAddItem = (item) => {
+        if (item.producto && item.producto.trim() !== "") {
+            setCompra({
+                ...compra,
+                ItemList: [...(compra.ItemList || []), item],
+            });
+        }
+        setShowAddItemModal(false);
+    };
+
+    // Función para eliminar un ítem del ItemList
+    const handleRemoveItem = (index) => {
+        const newItemList = compra.ItemList.filter((_, i) => i !== index);
+        setCompra({ ...compra, ItemList: newItemList });
+    };
+
+    // Función para filtrar ítems vacíos y transformar el objeto antes de enviar
+    const handleSubmitForm = (e) => {
+        e.preventDefault();
+        // Filtrar los ítems cuyo campo "producto" esté vacío y transformar cada uno
+        const filteredItemList = (compra.ItemList || [])
+            .filter((item) => item.producto && item.producto.trim() !== "")
+            .map((item) => ({
+                producto: item.productId || item.producto,
+                cantidad: item.cantidad,
+                precio: item.precio,
+                igv: item.igv,
+            }));
+        let compraToSend = { ...compra, ItemList: filteredItemList };
+
+        // Para los campos opcionales del proveedor, si quedan vacíos se asigna "a"
+        if (!compraToSend.proveedor) {
+            compraToSend.proveedor = {};
+        }
+        compraToSend.proveedor.nomproveedor =
+            compraToSend.proveedor.nomproveedor && compraToSend.proveedor.nomproveedor.trim() !== ""
+                ? compraToSend.proveedor.nomproveedor
+                : "a";
+        compraToSend.proveedor.direccion =
+            compraToSend.proveedor.direccion && compraToSend.proveedor.direccion.trim() !== ""
+                ? compraToSend.proveedor.direccion
+                : "a";
+        compraToSend.proveedor.contacto =
+            compraToSend.proveedor.contacto && compraToSend.proveedor.contacto.trim() !== ""
+                ? compraToSend.proveedor.contacto
+                : "a";
+
+        console.log("Enviando datos para crear compra:", compraToSend);
+        onSubmit(compraToSend);
+    };
+
     return (
-        <form
-            onSubmit={(e) => {
-                e.preventDefault();
-                onSubmit(compra);
-            }}
-            style={styles.form}
-        >
+        <form onSubmit={handleSubmitForm} style={styles.form}>
             <h2>Datos de la Compra</h2>
             <div style={styles.formGroup}>
                 <label style={styles.label}>Número de Documento:</label>
@@ -57,6 +94,7 @@ const CompraForm = ({ compra, setCompra, onSubmit, onCancel }) => {
                     required
                 />
             </div>
+
             <div style={styles.formGroup}>
                 <label style={styles.label}>RUC Cliente:</label>
                 <input
@@ -69,61 +107,7 @@ const CompraForm = ({ compra, setCompra, onSubmit, onCancel }) => {
                 />
             </div>
 
-            <h3>Ítems de la Compra</h3>
-            {compra.ItemList.map((item, index) => (
-                <div key={index} style={styles.itemContainer}>
-                    <div style={styles.formGroup}>
-                        <label style={styles.label}>Producto:</label>
-                        <input
-                            type="text"
-                            name="producto"
-                            value={item.producto}
-                            onChange={(e) => handleItemChange(index, e)}
-                            style={styles.input}
-                            required
-                        />
-                    </div>
-                    <div style={styles.formGroup}>
-                        <label style={styles.label}>Cantidad:</label>
-                        <input
-                            type="number"
-                            name="cantidad"
-                            value={item.cantidad}
-                            onChange={(e) => handleItemChange(index, e)}
-                            style={styles.input}
-                            required
-                        />
-                    </div>
-                    <div style={styles.formGroup}>
-                        <label style={styles.label}>Precio:</label>
-                        <input
-                            type="number"
-                            name="precio"
-                            value={item.precio}
-                            onChange={(e) => handleItemChange(index, e)}
-                            style={styles.input}
-                            required
-                        />
-                    </div>
-                    <div style={styles.formGroup}>
-                        <label style={styles.label}>IGV:</label>
-                        <input
-                            type="number"
-                            name="igv"
-                            value={item.igv}
-                            onChange={(e) => handleItemChange(index, e)}
-                            style={styles.input}
-                            required
-                        />
-                    </div>
-                    <hr style={{ margin: "10px 0" }} />
-                </div>
-            ))}
-            <button type="button" onClick={addItem} style={styles.addButton}>
-                Agregar Ítem
-            </button>
-
-            <h3>Datos del Proveedor (Opcional)</h3>
+            <h3>Datos del Proveedor</h3>
             <div style={styles.formGroup}>
                 <label style={styles.label}>RUC:</label>
                 <input
@@ -165,6 +149,42 @@ const CompraForm = ({ compra, setCompra, onSubmit, onCancel }) => {
                 />
             </div>
 
+            <h3>Ítems de la Compra</h3>
+            <div style={styles.buttonGroup}>
+                <button
+                    type="button"
+                    onClick={() => setShowAddItemModal(true)}
+                    style={styles.addButton}
+                >
+                    Agregar Ítem
+                </button>
+            </div>
+
+            {/* Muestra la lista de ítems agregados */}
+            {compra.ItemList && compra.ItemList.length > 0 && (
+                <div style={styles.itemList}>
+                    <ul style={styles.ul}>
+                        {compra.ItemList.map((item, index) => (
+                            <li key={index} style={styles.li}>
+                <span>
+                  <strong>Producto:</strong> {item.producto} -{" "}
+                    <strong>Cantidad:</strong> {item.cantidad} -{" "}
+                    <strong>Precio:</strong> {item.precio} -{" "}
+                    <strong>IGV:</strong> {item.igv}
+                </span>
+                                <button
+                                    type="button"
+                                    onClick={() => handleRemoveItem(index)}
+                                    style={styles.removeButton}
+                                >
+                                    Eliminar
+                                </button>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+
             <div style={styles.buttonGroup}>
                 <button type="submit" style={styles.saveButton}>
                     Guardar
@@ -173,6 +193,17 @@ const CompraForm = ({ compra, setCompra, onSubmit, onCancel }) => {
                     Cancelar
                 </button>
             </div>
+
+            {showAddItemModal && (
+                <div style={styles.modalOverlay}>
+                    <div style={styles.modal}>
+                        <AddItem
+                            onAddItem={handleAddItem}
+                            onCancel={() => setShowAddItemModal(false)}
+                        />
+                    </div>
+                </div>
+            )}
         </form>
     );
 };
@@ -191,7 +222,7 @@ CompraForm.propTypes = {
                 igv: PropTypes.oneOfType([PropTypes.string, PropTypes.number])
                     .isRequired,
             })
-        ).isRequired,
+        ),
         proveedor: PropTypes.shape({
             ruc: PropTypes.string,
             nomproveedor: PropTypes.string,
@@ -252,11 +283,43 @@ const styles = {
         cursor: "pointer",
         alignSelf: "flex-start",
     },
-    itemContainer: {
-        border: "1px solid #ccc",
-        padding: "10px",
+    itemList: { marginTop: "10px" },
+    ul: {
+        listStyleType: "none",
+        padding: 0,
+        margin: 0,
+    },
+    li: {
+        padding: "5px 0",
+        borderBottom: "1px solid #ccc",
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+    },
+    removeButton: {
+        padding: "5px 10px",
+        backgroundColor: "#dc3545",
+        color: "white",
+        border: "none",
         borderRadius: "5px",
-        marginBottom: "10px",
+        cursor: "pointer",
+    },
+    modalOverlay: {
+        position: "fixed",
+        top: 0,
+        left: 0,
+        width: "100%",
+        height: "100%",
+        backgroundColor: "rgba(0, 0, 0, 0.5)",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    modal: {
+        backgroundColor: "white",
+        padding: "30px",
+        borderRadius: "8px",
+        width: "400px",
     },
 };
 
