@@ -22,6 +22,7 @@ const getAdvancedSearch = async (filters) => {
 };
 
 const createCompra = async (compraData) => {
+    console.log("Enviando datos para crear compra:", compraData);
     try {
         const response = await api.post(`/regmovcab/create-compra`, compraData);
         return response.data;
