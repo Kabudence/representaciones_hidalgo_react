@@ -3,7 +3,7 @@ import api from './api'; // La instancia configurada de axios
 const productService = {
     getAll: async () => {
         try {
-            const response = await api.get('/productos');
+            const response = await api.get('/productos/');
             console.log("Respuesta de la API:", response.data);
             return response.data;
         } catch (error) {

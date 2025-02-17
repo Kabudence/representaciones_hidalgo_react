@@ -2,7 +2,7 @@ import api from "./api";
 
 const employeeService = {
     getAll: async () => {
-        const response = await api.get("/vendedores");
+        const response = await api.get("/vendedores/");
         return response.data;
     },
     getById: async (id) => {

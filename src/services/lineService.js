@@ -7,7 +7,7 @@ import Line from "../models/Line";
 const lineService = {
     getAll: async () => {
         // GET /lineas
-        const response = await api.get("/lineas");
+        const response = await api.get("/lineas/");
         return response.data.map(
             (obj) => new Line(obj.idlinea, obj.nombre, obj.estado, obj.idemp)
         );

@@ -15,6 +15,7 @@ import { useContext } from "react";
 import { AuthContext, AuthProvider } from "./components/auth-components/AuthContext.jsx";
 import PropTypes from "prop-types";
 import NoAutorizado from "./pages/NoAutorizado.jsx";
+import DailySales from "./pages/DailySales.jsx";
 
 const ProtectedRoute = ({ children }) => {
     const { authData, isAuthDataLoaded } = useContext(AuthContext);
@@ -49,6 +50,13 @@ const App = () => {
                                 element={
                                     <ProtectedRoute>
                                         <NoAutorizado />
+                                    </ProtectedRoute>
+                                }
+                            />   <Route
+                                path="/daily-sales"
+                                element={
+                                    <ProtectedRoute>
+                                        <DailySales />
                                     </ProtectedRoute>
                                 }
                             />

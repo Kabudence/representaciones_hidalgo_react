@@ -2,7 +2,7 @@ import api from "./api";
 
 const providerService = {
     getAll: async () => {
-        const response = await api.get("/proveedores");
+        const response = await api.get("/proveedores/");
         return response.data;
     },
     getById: async (id) => {

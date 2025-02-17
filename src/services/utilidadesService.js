@@ -11,7 +11,7 @@ const utilidadService = {
      */
     getUtilidades: async (startDate, endDate) => {
         try {
-            const response = await api.get(`/utilidades?start_date=${startDate}&end_date=${endDate}`);
+            const response = await api.get(`/utilidades/?start_date=${startDate}&end_date=${endDate}`);
             console.log("Respuesta de la API (utilidades generales):", response.data);
 
             return response.data.utilidades.map((obj) => new Utilidad(obj));

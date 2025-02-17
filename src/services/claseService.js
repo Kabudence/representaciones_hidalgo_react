@@ -3,7 +3,7 @@ import Clase from "../models/Clase";
 
 const claseService = {
     getAll: async () => {
-        const response = await api.get("/clases");
+        const response = await api.get("/clases/");
         return response.data.map(
             (obj) => new Clase(obj.idclase, obj.nombres, obj.idemp, obj.estado)
         );

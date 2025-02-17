@@ -98,6 +98,7 @@ const Navbar = () => {
                     <li><a href="/empleados" style={styles.linkItem}>Empleados</a></li>
                     <li><a href="/lineas" style={styles.linkItem}>Lineas</a></li>
                     <li><a href="/clases" style={styles.linkItem}>Clases</a></li>
+                    <li><a href="/daily-sales" style={styles.linkItem}>Ventas diarias</a></li>
                 </ul>
 
                 {/* Ícono de usuario con Dropdown */}

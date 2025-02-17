@@ -3,7 +3,7 @@ import api from "./api";
 
 const clientService = {
     getAll: async () => {
-        const response = await api.get("/clientes");
+        const response = await api.get("/clientes/");
         return response.data;
     },
     create: async (data) => {
