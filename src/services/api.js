@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-    baseURL: "http://127.0.0.1:5000/api", // URL de tu backend
+    baseURL: "https://web-production-927a.up.railway.app/api", // URL de tu backend
 });
 
 // Interceptor para incluir el token en cada solicitud
@@ -36,7 +36,7 @@ api.interceptors.response.use(
 
                 // Solicitar un nuevo token de acceso
                 const refreshResponse = await axios.post(
-                    "http://127.0.0.1:5000/api/auth/refresh",
+                    "https://web-production-927a.up.railway.app/api/auth/refresh",
                     {},
                     {
                         headers: {
