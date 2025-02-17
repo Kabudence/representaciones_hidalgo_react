@@ -21,7 +21,7 @@ const Products = () => {
     const itemsPerPage = 10;
 
     useEffect(() => {
-        // Obtener rol del usuario desde localStorage
+        // Obtener rol del usuario desde sessionStorage
         const storedUserData = sessionStorage.getItem("authData");
         if (storedUserData) {
             const { role } = JSON.parse(storedUserData);
@@ -73,7 +73,7 @@ const Products = () => {
         if (searchTerm.trim() === "") {
             setFilteredProducts(products);
         } else {
-            const searchWords = searchTerm.split(" ").map(word => `${word}`);
+            const searchWords = searchTerm.split(" ").map((word) => `${word}`);
             const query = searchWords.join(" ");
             const results = fuse.search(query).map((result) => result.item);
             setFilteredProducts(results);
@@ -239,12 +239,16 @@ const Products = () => {
                     onChange={(e) => setSearchTerm(e.target.value)}
                     style={styles.searchInput}
                 />
-                <button
-                    onClick={() => handleOpenModal("Agregar")}
-                    style={{ ...styles.addButton, marginLeft: "10px" }}
-                >
-                    Agregar Producto
-                </button>
+
+                {/* Mostrar el botón sólo si el rol es admin */}
+                {role === "admin" && (
+                    <button
+                        onClick={() => handleOpenModal("Agregar")}
+                        style={{ ...styles.addButton, marginLeft: "10px" }}
+                    >
+                        Agregar Producto
+                    </button>
+                )}
             </div>
 
             <table style={styles.table}>
