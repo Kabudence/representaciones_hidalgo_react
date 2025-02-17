@@ -23,8 +23,8 @@ const AuthBox = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         const url = isRegister
-            ? "http://127.0.0.1:5000/api/auth/register"
-            : "http://127.0.0.1:5000/api/auth/login";
+            ? "https://web-production-927a.up.railway.app/api/auth/register"
+            : "https://web-production-927a.up.railway.app/api/auth/login";
 
         try {
             const response = await fetch(url, {
