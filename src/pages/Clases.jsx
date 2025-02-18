@@ -23,12 +23,10 @@ const Clases = () => {
         if (storedAuthData) {
             try {
                 const parsedAuthData = JSON.parse(storedAuthData);
-                console.log("AuthData cargado:", parsedAuthData);
 
                 if (parsedAuthData.role === "admin") {
                     setIsAuthorized(true); // Usuario autorizado
                 } else {
-                    console.warn("Acceso denegado: Usuario no es admin");
                     navigate("/no-autorizado"); // Redirigir si no es admin
                 }
             } catch (error) {
@@ -36,7 +34,6 @@ const Clases = () => {
                 navigate("/login"); // Si hay error, enviarlo al login
             }
         } else {
-            console.warn("No se encontró authData en sessionStorage");
             navigate("/login"); // Si no hay authData, redirigir al login
         }
 
@@ -45,7 +42,6 @@ const Clases = () => {
             claseService
                 .getAll()
                 .then((data) => {
-                    console.log("Clases -> useEffect -> data:", data);
                     setClases(data);
                 })
                 .catch((err) => console.error("Error fetching clases:", err));
@@ -89,7 +85,6 @@ const Clases = () => {
     };
 
     const handleFormSubmit = (formData) => {
-        console.log("handleFormSubmit -> formData:", formData);
         const finalClase = new Clase(
             formData.idclase ? Number(formData.idclase) : null,
             formData.nombres,
@@ -105,7 +100,6 @@ const Clases = () => {
                 claseService
                     .create(finalClase)
                     .then((newClase) => {
-                        console.log("Clases -> created clase:", newClase);
                         setClases([...clases, newClase]);
                         setShowModal(false);
                     })
@@ -115,13 +109,11 @@ const Clases = () => {
             } else {
                 // EDIT / UPDATE
                 if (!finalClase.idclase) {
-                    console.error("No se puede editar si 'idclase' es null.");
                     return;
                 }
                 claseService
                     .update(finalClase.idclase, finalClase)
                     .then((updated) => {
-                        console.log("Clases -> updated clase:", updated);
                         const updatedList = clases.map((item) =>
                             item.idclase === updated.idclase ? updated : item
                         );
@@ -143,8 +135,7 @@ const Clases = () => {
         }
         claseService
             .remove(idclase)
-            .then((res) => {
-                console.log("Clases -> removed clase, server response:", res);
+            .then(() => {
                 const newList = clases.filter((clase) => clase.idclase !== idclase);
                 setClases(newList);
             })

@@ -76,7 +76,6 @@ const CompraForm = ({ compra, setCompra, onSubmit, onCancel }) => {
                 ? compraToSend.proveedor.contacto
                 : "a";
 
-        console.log("Enviando datos para crear compra:", compraToSend);
         onSubmit(compraToSend);
     };
 

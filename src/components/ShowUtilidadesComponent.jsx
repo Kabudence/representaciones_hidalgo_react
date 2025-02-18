@@ -47,7 +47,6 @@ const ShowUtilidadesComponent = () => {
         const utilidadesArray = Array.isArray(data)
             ? data
             : (data.utilidades || []);
-        console.log("Generando PDF, utilidadesArray:", utilidadesArray);
 
         // Generar las filas de la tabla
         const tableRows = utilidadesArray.map((util) => [
@@ -83,7 +82,6 @@ const ShowUtilidadesComponent = () => {
             sumUtilidades.toFixed(2)
         ]);
 
-        console.log("Table rows:", tableRows);
 
         // Crear la tabla en el PDF
         doc.autoTable({
@@ -112,7 +110,6 @@ const ShowUtilidadesComponent = () => {
         }
         try {
             const data = await utilidadesService.getUtilidades(startDate, endDate);
-            console.log("Utilidades generales:", data);
             generatePDF(data, "Listado de Utilidades Generales");
         } catch (error) {
             console.error("Error al obtener utilidades generales:", error);
@@ -137,7 +134,6 @@ const ShowUtilidadesComponent = () => {
                 endDate,
                 empresa
             );
-            console.log(`Utilidades para ${label}:`, data);
             generatePDF(data, `Utilidades - ${label}`);
         } catch (error) {
             console.error(`Error al obtener utilidades para ${label}:`, error);

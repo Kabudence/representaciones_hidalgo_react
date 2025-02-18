@@ -21,27 +21,21 @@ const Providers = () => {
     useEffect(() => {
         // Intentamos obtener authData desde sessionStorage
         const storedAuthData = sessionStorage.getItem("authData");
-        console.log("SessionStorage authData:", storedAuthData);
 
         if (storedAuthData) {
             try {
                 const parsedAuthData = JSON.parse(storedAuthData);
-                console.log("AuthData parseado:", parsedAuthData);
                 const roleValue = parsedAuthData.role
                     ? parsedAuthData.role.trim().toLowerCase()
                     : "";
-                console.log("Rol obtenido:", roleValue);
 
                 if (roleValue === "admin") {
                     setIsAuthorized(true);
-                    console.log("Acceso permitido: Usuario admin");
                 } else {
-                    console.warn("Acceso denegado: Usuario no es admin");
                     setIsAuthorized(false);
                     navigate("/no-autorizado", { replace: true });
                 }
-            } catch (error) {
-                console.error("Error parseando authData:", error);
+            } catch {
                 setIsAuthorized(false);
                 navigate("/login", { replace: true });
             }
@@ -71,7 +65,6 @@ const Providers = () => {
                                 p.estado
                             )
                     );
-                    console.log("Proveedores obtenidos:", providerObjects);
                     setProviders(providerObjects);
                     setLoading(false);
                 })

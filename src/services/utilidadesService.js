@@ -12,7 +12,6 @@ const utilidadService = {
     getUtilidades: async (startDate, endDate) => {
         try {
             const response = await api.get(`/utilidades/?start_date=${startDate}&end_date=${endDate}`);
-            console.log("Respuesta de la API (utilidades generales):", response.data);
 
             return response.data.utilidades.map((obj) => new Utilidad(obj));
         } catch (error) {
@@ -31,7 +30,6 @@ const utilidadService = {
     getUtilidadesPorEmpresa: async (startDate, endDate, empresa) => {
         try {
             const response = await api.get(`/utilidades/empresa?start_date=${startDate}&end_date=${endDate}&empresa=${empresa}`);
-            console.log("Respuesta de la API (utilidades por empresa):", response.data);
 
             return response.data.utilidades.map((obj) => new Utilidad(obj));
         } catch (error) {

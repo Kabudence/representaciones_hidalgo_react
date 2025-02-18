@@ -37,22 +37,18 @@ const Compras = () => {
         if (storedAuthData) {
             try {
                 const parsedAuthData = JSON.parse(storedAuthData);
-                console.log("AuthData cargado:", parsedAuthData);
 
                 if (parsedAuthData.role === "admin") {
                     setIsAuthorized(true);
                 } else {
-                    console.warn("Acceso denegado: Usuario no es admin");
                     setIsAuthorized(false);
                     navigate("/no-autorizado"); // Redirigir a la página de acceso denegado
                 }
             } catch (error) {
-                console.error("Error parseando authData:", error);
                 setIsAuthorized(false);
                 navigate("/login"); // Si hay error, redirigir al login
             }
         } else {
-            console.warn("No se encontró authData en sessionStorage");
             setIsAuthorized(false);
             navigate("/login"); // Si no hay authData, redirigir al login
         }
@@ -81,9 +77,8 @@ const Compras = () => {
             }));
             setCompras(normalizedCompras);
             setTotalPages(data.totalPages);
-        } catch (error) {
-            console.error("Error al obtener datos:", error);
-        } finally {
+        }
+         finally {
             setIsLoading(false);
         }
     };
@@ -199,7 +194,6 @@ const Compras = () => {
     };
 
     const handleSubmitCompra = async (compraData) => {
-        console.log("Enviando compra...", compraData);
         try {
             await compraService.createCompra(compraData);
             closeCompraModal();

@@ -23,7 +23,6 @@ const Lines = () => {
         if (storedAuthData) {
             try {
                 const parsedAuthData = JSON.parse(storedAuthData);
-                console.log("AuthData cargado:", parsedAuthData);
 
                 if (parsedAuthData.role === "admin") {
                     setIsAuthorized(true); // Usuario autorizado
@@ -45,7 +44,6 @@ const Lines = () => {
             lineService
                 .getAll()
                 .then((data) => {
-                    console.log("Lines -> useEffect -> data:", data);
                     setLines(data);
                 })
                 .catch((err) => console.error("Error fetching lines:", err));
@@ -91,7 +89,6 @@ const Lines = () => {
     };
 
     const handleFormSubmit = (formData) => {
-        console.log("handleFormSubmit -> formData:", formData);
         // Convertir a un objeto Line
         const finalLine = new Line(
             formData.idlinea ? Number(formData.idlinea) : null,
@@ -108,7 +105,6 @@ const Lines = () => {
                 lineService
                     .create(finalLine)
                     .then((newLine) => {
-                        console.log("Lines -> created line:", newLine);
                         setLines([...lines, newLine]);
                         setShowModal(false);
                     })
@@ -124,7 +120,6 @@ const Lines = () => {
                 lineService
                     .update(finalLine.idlinea, finalLine)
                     .then((updated) => {
-                        console.log("Lines -> updated line:", updated);
                         const updatedList = lines.map((item) =>
                             item.idlinea === updated.idlinea ? updated : item
                         );
@@ -146,8 +141,7 @@ const Lines = () => {
         }
         lineService
             .remove(idlinea)
-            .then((res) => {
-                console.log("Lines -> removed line, server response:", res);
+            .then(() => {
                 const newList = lines.filter((line) => line.idlinea !== idlinea);
                 setLines(newList);
             })

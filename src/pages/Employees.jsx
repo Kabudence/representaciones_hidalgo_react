@@ -26,7 +26,6 @@ const Employees = () => {
         if (storedAuthData) {
             try {
                 const parsedAuthData = JSON.parse(storedAuthData);
-                console.log("AuthData cargado:", parsedAuthData);
 
                 if (parsedAuthData.role === "admin") {
                     setIsAuthorized(true);
@@ -112,13 +111,11 @@ const Employees = () => {
             };
 
             // Log del payload que se enviará
-            console.log("Payload enviado al backend:", payload);
 
             if (formType === "Agregar") {
                 employeeService
                     .create(payload)
                     .then((newEmployee) => {
-                        console.log("Respuesta del backend al crear:", newEmployee);
                         setEmployees([
                             ...employees,
                             new Employee(
@@ -140,7 +137,6 @@ const Employees = () => {
                 employeeService
                     .update(employeeData.id, payload)
                     .then((updatedEmployee) => {
-                        console.log("Respuesta del backend al actualizar:", updatedEmployee);
                         setEmployees(
                             employees.map((emp) =>
                                 emp.id === employeeData.id

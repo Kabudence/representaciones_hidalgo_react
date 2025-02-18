@@ -33,7 +33,6 @@ export const AuthProvider = ({ children }) => {
                 console.error("[AuthProvider] Error al parsear authData desde sessionStorage:", error);
             }
         } else {
-            console.log("[AuthProvider] No se encontró authData en sessionStorage.");
         }
         setIsAuthDataLoaded(true);
     };

@@ -168,7 +168,6 @@ const Products = () => {
     };
 
     const handleFormSubmit = (productData) => {
-        console.log("Datos enviados al servidor para PUT:", productData);
 
         if (formType === "Agregar") {
             productService
@@ -184,7 +183,6 @@ const Products = () => {
             productService
                 .update(productData.id, productData)
                 .then((updatedProduct) => {
-                    console.log("Respuesta del servidor para PUT:", updatedProduct);
                     setProducts(
                         products.map((p) =>
                             p.id === productData.id ? { ...p, ...productData } : p

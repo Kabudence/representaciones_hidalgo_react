@@ -6,7 +6,6 @@ const ventaService = {
     getAll: async () => {
         // GET /ventas
         const response = await api.get("/ventas/");
-        console.log("Respuesta de la API:", response.data);
 
         return response.data.map((obj) => {
             return new Venta(
@@ -27,7 +26,6 @@ const ventaService = {
 
     getPage: async (page = 1, size = 10) => {
         const response = await api.get(`/ventas/?page=${page}&size=${size}`);
-        console.log("Respuesta de la API:", response.data);
 
         return response.data; // { ventas: [], total: number }
     },

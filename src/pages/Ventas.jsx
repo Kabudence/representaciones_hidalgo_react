@@ -25,7 +25,6 @@ function Ventas() {
         if (storedAuthData) {
             try {
                 const parsedAuthData = JSON.parse(storedAuthData);
-                console.log("AuthData cargado:", parsedAuthData);
 
                 if (parsedAuthData.role === "admin") {
                     setIsAuthorized(true);

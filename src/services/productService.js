@@ -4,7 +4,6 @@ const productService = {
     getAll: async () => {
         try {
             const response = await api.get('/productos/');
-            console.log("Respuesta de la API:", response.data);
             return response.data;
         } catch (error) {
             console.error('Error fetching products:', error);
@@ -42,7 +41,6 @@ const productService = {
                 estado: product.estado || 1,
             };
 
-            console.log("Enviando datos al backend (PUT):", productData);
 
             const response = await api.put(`/productos/${id}`, productData);
             return response.data; // Retorna el producto actualizado

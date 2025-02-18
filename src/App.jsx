@@ -27,7 +27,6 @@ const ProtectedRoute = ({ children }) => {
     }
 
     if (!authData || !authData.token) {
-        console.log("[ProtectedRoute] No autenticado. Redirigiendo a Home...");
         return <Navigate to="/" replace />;
     }
 
