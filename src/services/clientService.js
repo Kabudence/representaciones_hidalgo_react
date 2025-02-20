@@ -27,6 +27,10 @@ const clientService = {
             throw error;
         }
     },
+    createAutomatic: async (data) => {
+        const response = await api.post("/clientes/automatic-create", data);
+        return response.data;
+    },
 };
 
 export default clientService;

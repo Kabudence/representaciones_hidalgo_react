@@ -1,6 +1,5 @@
-// src/services/lineService.js
 
-import api from "./api";    // tu instancia axios: baseURL = http://127.0.0.1:5000/api
+import api from "./api";
                             // headers: { 'Content-Type': 'application/json' }
 import Line from "../models/Line";
 

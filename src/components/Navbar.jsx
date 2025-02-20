@@ -99,6 +99,7 @@ const Navbar = () => {
                     <li><a href="/lineas" style={styles.linkItem}>Lineas</a></li>
                     <li><a href="/clases" style={styles.linkItem}>Clases</a></li>
                     <li><a href="/daily-sales" style={styles.linkItem}>Ventas diarias</a></li>
+                    <li><a href="/nota-venta" style={styles.linkItem}>Nota de venta</a></li>
                 </ul>
 
                 {/* Ícono de usuario con Dropdown */}
