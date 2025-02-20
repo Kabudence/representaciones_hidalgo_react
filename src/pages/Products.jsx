@@ -54,7 +54,6 @@ const Products = () => {
             });
     };
 
-    // Búsqueda con debounce
     useEffect(() => {
         const searchDebounce = setTimeout(() => {
             if (searchTerm.trim()) {
@@ -64,11 +63,11 @@ const Products = () => {
                             id: p.idprod,
                             _nombreOriginal: p.nomproducto,
                             unidad_medida: p.umedida,
-                            stock_inicial: p.st_ini,
-                            stock_actual: p.st_act,
-                            stock_minimo: p.st_min,
-                            precio_costo: p.pr_costo,
-                            precio_venta: p.prventa,
+                            stock_inicial: p.st_ini || 0,
+                            stock_actual: p.st_act || 0,
+                            stock_minimo: p.st_min || 0,
+                            precio_costo: p.pr_costo || 0.0,
+                            precio_venta: p.prventa || 0.0,
                             modelo: p.modelo,
                             medida: p.medida
                         }));
@@ -88,7 +87,6 @@ const Products = () => {
         (currentPage - 1) * itemsPerPage,
         currentPage * itemsPerPage
     );
-    // Función para generar el PDF de productos
     const exportToPDF = () => {
         const doc = new jsPDF("landscape");
         const now = new Date();
@@ -99,7 +97,6 @@ const Products = () => {
         doc.setFontSize(14);
         doc.text("Listado de Productos", 148, 30, { align: "center" });
 
-        // Para PDF se usa la información completa (admin)
         const tableColumn = [
             "ID",
             "Nombre",
@@ -115,13 +112,13 @@ const Products = () => {
 
         const tableRows = filteredProducts.map((product) => [
             product.id,
-            product.nombre,
+            product._nombreOriginal,
             product.unidad_medida,
-            product.stock_inicial,
-            product.stock_actual,
-            product.stock_minimo,
-            product.precio_costo.toFixed(2),
-            product.precio_venta.toFixed(2),
+            product.stock_inicial || 0,
+            product.stock_actual || 0,
+            product.stock_minimo || 0,
+            (product.precio_costo || 0).toFixed(2),
+            (product.precio_venta || 0).toFixed(2),
             product.modelo,
             product.medida,
         ]);
