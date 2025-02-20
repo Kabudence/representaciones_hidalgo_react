@@ -1,4 +1,4 @@
-import api from './api'; // La instancia configurada de axios
+import api from './api';
 
 const productService = {
     getAll: async () => {
@@ -11,11 +11,22 @@ const productService = {
         }
     },
 
+    search: async (term) => {
+        try {
+            const response = await api.get('/productos/search', {
+                params: { term }
+            });
+            return response.data;
+        } catch (error) {
+            console.error('Error searching products:', error);
+            throw error;
+        }
+    },
 
     create: async (product) => {
         try {
             const response = await api.post('/productos', product);
-            return response.data; // Retorna el producto creado
+            return response.data;
         } catch (error) {
             console.error('Error creating product:', error);
             throw error;
@@ -24,9 +35,8 @@ const productService = {
 
     update: async (id, product) => {
         try {
-            // Aquí aseguramos que los datos coincidan con el formato esperado por el backend
             const productData = {
-                idemp: product.idemp || "01", // Valores predeterminados
+                idemp: product.idemp || "01",
                 periodo: product.periodo || "2025",
                 idprod: product.id,
                 nomproducto: product.nombre,
@@ -41,9 +51,8 @@ const productService = {
                 estado: product.estado || 1,
             };
 
-
             const response = await api.put(`/productos/${id}`, productData);
-            return response.data; // Retorna el producto actualizado
+            return response.data;
         } catch (error) {
             console.error('Error updating product:', error);
             throw error;
@@ -53,7 +62,7 @@ const productService = {
     remove: async (id) => {
         try {
             const response = await api.delete(`/productos/${id}`);
-            return response.data; // Retorna la confirmación de eliminación
+            return response.data;
         } catch (error) {
             console.error('Error deleting product:', error);
             throw error;

@@ -1,9 +1,8 @@
-import { useState, useEffect } from "react";
+import {useState, useEffect} from "react";
 import Product from "../models/Product";
 import ProductForm from "../components/ProductForm.jsx";
 import Pagination from "../components/Pagination";
 import productService from "../services/productService";
-import Fuse from "fuse.js";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 
@@ -21,19 +20,21 @@ const Products = () => {
     const itemsPerPage = 10;
 
     useEffect(() => {
-        // Obtener rol del usuario desde sessionStorage
         const storedUserData = sessionStorage.getItem("authData");
         if (storedUserData) {
             const { role } = JSON.parse(storedUserData);
             setRole(role);
         }
 
-        productService
-            .getAll()
+        loadProducts();
+    }, []);
+
+    const loadProducts = () => {
+        productService.getAll()
             .then((data) => {
-                const productObjects = data.map((p, index) => ({
-                    id: p.idprod || `Producto-${index + 1}`,
-                    nombre: p.nomproducto || "Sin Nombre",
+                const productObjects = data.map((p) => ({
+                    id: p.idprod,
+                    _nombreOriginal: p.nomproducto || "Sin Nombre",
                     unidad_medida: p.umedida || "Sin Unidad",
                     stock_inicial: p.st_ini || 0,
                     stock_actual: p.st_act || 0,
@@ -51,33 +52,35 @@ const Products = () => {
                 console.error("Error fetching products:", error);
                 setLoading(false);
             });
-    }, []);
-
-    // Configuración de Fuse.js para búsqueda flexible
-    const fuseOptions = {
-        includeScore: true,
-        threshold: 0.3,
-        keys: [
-            { name: "nombre", weight: 0.8 },
-            { name: "id", weight: 0.5 },
-            { name: "medida", weight: 0.3 },
-        ],
-        tokenize: true,
-        findAllMatches: true,
-        useExtendedSearch: true,
     };
 
-    const fuse = new Fuse(products, fuseOptions);
-
+    // Búsqueda con debounce
     useEffect(() => {
-        if (searchTerm.trim() === "") {
-            setFilteredProducts(products);
-        } else {
-            const searchWords = searchTerm.split(" ").map((word) => `${word}`);
-            const query = searchWords.join(" ");
-            const results = fuse.search(query).map((result) => result.item);
-            setFilteredProducts(results);
-        }
+        const searchDebounce = setTimeout(() => {
+            if (searchTerm.trim()) {
+                productService.search(searchTerm)
+                    .then(results => {
+                        const formattedResults = results.map(p => ({
+                            id: p.idprod,
+                            _nombreOriginal: p.nomproducto,
+                            unidad_medida: p.umedida,
+                            stock_inicial: p.st_ini,
+                            stock_actual: p.st_act,
+                            stock_minimo: p.st_min,
+                            precio_costo: p.pr_costo,
+                            precio_venta: p.prventa,
+                            modelo: p.modelo,
+                            medida: p.medida
+                        }));
+                        setFilteredProducts(formattedResults);
+                    })
+                    .catch(() => setFilteredProducts([]));
+            } else {
+                setFilteredProducts(products);
+            }
+        }, 300);
+
+        return () => clearTimeout(searchDebounce);
     }, [searchTerm, products]);
 
     const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
@@ -85,7 +88,6 @@ const Products = () => {
         (currentPage - 1) * itemsPerPage,
         currentPage * itemsPerPage
     );
-
     // Función para generar el PDF de productos
     const exportToPDF = () => {
         const doc = new jsPDF("landscape");
@@ -182,7 +184,7 @@ const Products = () => {
         } else {
             productService
                 .update(productData.id, productData)
-                .then((updatedProduct) => {
+                .then(() => {
                     setProducts(
                         products.map((p) =>
                             p.id === productData.id ? { ...p, ...productData } : p
@@ -238,7 +240,6 @@ const Products = () => {
                     style={styles.searchInput}
                 />
 
-                {/* Mostrar el botón sólo si el rol es admin */}
                 {role === "admin" && (
                     <button
                         onClick={() => handleOpenModal("Agregar")}
@@ -281,7 +282,7 @@ const Products = () => {
                     role === "admin" ? (
                         <tr key={product.id || `row-${index}`} style={styles.tableRow}>
                             <td style={styles.tableCell}>{product.id}</td>
-                            <td style={styles.tableCell}>{product.nombre}</td>
+                            <td style={styles.tableCell}>{product._nombreOriginal}</td>
                             <td style={styles.tableCell}>{product.unidad_medida}</td>
                             <td style={styles.tableCell}>{product.stock_inicial}</td>
                             <td style={styles.tableCell}>{product.stock_actual}</td>
@@ -307,7 +308,7 @@ const Products = () => {
                         </tr>
                     ) : (
                         <tr key={product.id || `row-${index}`} style={styles.tableRow}>
-                            <td style={styles.tableCell}>{product.nombre}</td>
+                            <td style={styles.tableCell}>{product._nombreOriginal}</td>
                             <td style={styles.tableCell}>{product.modelo}</td>
                             <td style={styles.tableCell}>{product.medida}</td>
                             <td style={styles.tableCell}>{product.stock_actual}</td>
