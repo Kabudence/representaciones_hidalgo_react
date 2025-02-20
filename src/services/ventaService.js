@@ -37,6 +37,15 @@ const ventaService = {
         const response = await api.get(`/ventas/advanced-search?${query}`);
         return response.data;
     },
+    createInProcess: async (data) => {
+        try {
+            const response = await api.post("/regmovcab/create-inprocess", data);
+            return response.data;
+        } catch (error) {
+            console.error("Error creando venta en proceso:", error);
+            throw error;
+        }
+    }
 
 
 };

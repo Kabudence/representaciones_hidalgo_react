@@ -2,6 +2,7 @@ import axios from "axios";
 
 const api = axios.create({
     baseURL: "https://web-production-927a.up.railway.app/api", // URL de tu backend
+
 });
 
 // Interceptor para incluir el token en cada solicitud

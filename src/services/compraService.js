@@ -30,10 +30,13 @@ const createCompra = async (compraData) => {
         console.error("Error al crear la compra:", error);
         throw error;
     }
+
 };
+
 
 export default {
     getPaginatedCompras,
     getAdvancedSearch,
     createCompra,
+
 };
