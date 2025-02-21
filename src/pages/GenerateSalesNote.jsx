@@ -18,6 +18,7 @@ const GenerateXMLStructureForm = () => {
     });
 
     const [itemList, setItemList] = useState([]);
+    const [showSuccess, setShowSuccess] = useState(false); // Nuevo estado para el mensaje
     const [newItem, setNewItem] = useState({
         ItemName: "",
         ItemQuantity: "",
@@ -215,6 +216,14 @@ const GenerateXMLStructureForm = () => {
             generatePDF();
             await SalesNoteService.incrementSalesNote();
 
+            // Mostrar mensaje de éxito
+            setShowSuccess(true);
+
+            // Recargar la página después de 2 segundos
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000);
+
         } catch (error) {
             console.error("Error durante el proceso:", error);
         }
@@ -222,6 +231,12 @@ const GenerateXMLStructureForm = () => {
 
     return (
         <div style={styles.container}>
+            {/* Mensaje de éxito */}
+            {showSuccess && (
+                <div style={styles.successMessage}>
+                    ¡VENTA GENERADA CON ÉXITO!
+                </div>
+            )}
             <h1 style={styles.headerTitle}>
                 CONSTANCIA DE PAGO N° {noteSalesInformation.NoteID}
             </h1>
