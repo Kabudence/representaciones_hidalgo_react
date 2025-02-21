@@ -66,8 +66,8 @@ const Products = () => {
                             stock_inicial: p.st_ini || 0,
                             stock_actual: p.st_act || 0,
                             stock_minimo: p.st_min || 0,
-                            precio_costo: p.pr_costo || 0.0,
-                            precio_venta: p.prventa || 0.0,
+                            precio_costo: Number(p.pr_costo) || 0.0,  // Asegurar que sea un número
+                            precio_venta: Number(p.prventa) || 0.0,
                             modelo: p.modelo,
                             medida: p.medida
                         }));
