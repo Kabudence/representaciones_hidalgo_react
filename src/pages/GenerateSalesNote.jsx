@@ -5,7 +5,6 @@ import api from "../services/api";
 import SalesNoteService from "../services/salesNoteService.js";
 
 const GenerateXMLStructureForm = () => {
-    // Eliminado myInformation ya que no se usa
     const [partyClient, setPartyClient] = useState({
         AddressTypeCode: "0000",
         RegistrationName: "",
@@ -18,29 +17,126 @@ const GenerateXMLStructureForm = () => {
     });
 
     const [itemList, setItemList] = useState([]);
-    const [showSuccess, setShowSuccess] = useState(false); // Nuevo estado para el mensaje
+    const [showSuccess, setShowSuccess] = useState(false);
     const [newItem, setNewItem] = useState({
         ItemName: "",
         ItemQuantity: "",
         ItemPrice: "",
     });
+    const getPeruCurrentDate = () => {
+        const date = new Date();
+        date.setHours(date.getHours() - 5); // Ajuste UTC-5
+        // Formato manual garantizado: dd/mm/aaaa
+        return [
+            String(date.getDate()).padStart(2, '0'),
+            String(date.getMonth() + 1).padStart(2, '0'),
+            date.getFullYear()
+        ].join('/');
+    };
+
     const [editingIndex, setEditingIndex] = useState(-1);
 
     useEffect(() => {
         const fetchNextNote = async () => {
+            let nextNumber = "0000"; // Valor por defecto
             try {
-                const nextNumber = await SalesNoteService.getCurrentSalesNote();
-                const currentDate = new Date().toISOString().split("T")[0];
-                setNoteSalesInformation({
-                    NoteID: nextNumber.toString(),
-                    IssueDate: currentDate,
-                });
+                nextNumber = await SalesNoteService.getCurrentSalesNote();
             } catch (error) {
-                console.error("Error fetching next sales note:", error);
+                console.error("Error obteniendo número de nota:", error);
             }
+
+            // Establecer fecha INDEPENDIENTEMENTE del resultado de la API
+            setNoteSalesInformation(prev => ({
+                ...prev,
+                NoteID: nextNumber.toString(),
+                IssueDate: getPeruCurrentDate() // Fuerza actualización de fecha
+            }));
         };
         fetchNextNote();
     }, []);
+
+
+    useEffect(() => {
+        console.log("Estado noteSalesInformation actualizado:", noteSalesInformation);
+    }, [noteSalesInformation]);
+
+    useEffect(() => {
+        console.log("Estado showSuccess actualizado:", showSuccess);
+    }, [showSuccess]);
+
+    const handleGenerate = async () => {
+        try {
+            console.log("[1] Iniciando proceso de venta...");
+
+            // 1. Ejecutar las operaciones en orden
+            console.log("[2] Ejecutando callCreateAutomatic...");
+            await callCreateAutomatic();
+            console.log("[3] callCreateAutomatic completado");
+
+            console.log("[4] Ejecutando callCreateInProcess...");
+            await callCreateInProcess();
+            console.log("[5] callCreateInProcess completado");
+
+            console.log("[6] Generando PDF...");
+            generatePDF();
+            console.log("[7] PDF generado");
+
+            // 2. Incrementar el número de nota ANTES de obtenerlo
+            console.log("[8] Incrementando número de nota...");
+            await SalesNoteService.incrementSalesNote();
+            console.log("[9] Número incrementado");
+
+            console.log("[10] Obteniendo nuevo número de nota...");
+            const nextNumber = await SalesNoteService.getCurrentSalesNote();
+            console.log("[11] Nuevo número obtenido:", nextNumber);
+
+            const currentDate = getPeruCurrentDate(); // <-- Reemplazar línea anterior
+            console.log("[12] Nueva fecha (Perú):", currentDate);
+
+            // 3. Mostrar mensaje de éxito
+            console.log("[13] Mostrando mensaje de éxito...");
+            setShowSuccess(true);
+            console.log("[14] Estado showSuccess después de set:", showSuccess); // Esto no se verá actualizado todavía
+
+            // 4. Reiniciar campos
+            console.log("[15] Reiniciando campos...");
+            console.log("Estado ANTES de reinicio:", {
+                partyClient,
+                itemList: itemList.length,
+                newItem,
+                editingIndex
+            });
+
+            setPartyClient({ AddressTypeCode: "0000", RegistrationName: "", IdentifyCode: "" });
+            setItemList([]);
+            setNewItem({ ItemName: "", ItemQuantity: "", ItemPrice: "" });
+            setEditingIndex(-1);
+
+            console.log("[16] Campos reiniciados (estado pendiente de actualizar)");
+
+            // 5. Actualizar número de nota
+            console.log("[17] Actualizando número de nota en estado...");
+            setNoteSalesInformation({
+                NoteID: nextNumber.toString(),
+                IssueDate: currentDate
+            });
+            console.log("[18] Estado noteSalesInformation después de set:", {
+                NoteID: nextNumber.toString(),
+                IssueDate: currentDate // <-- Usar fecha ajustada
+            });
+
+            // 6. Programar ocultar mensaje
+            console.log("[19] Programando ocultar mensaje...");
+            setTimeout(() => {
+                console.log("[20] Ocultando mensaje...");
+                setShowSuccess(false);
+                console.log("[21] Estado después de ocultar mensaje:", showSuccess);
+            }, 2000);
+
+        } catch (error) {
+            console.error("[ERROR] Durante el proceso:", error);
+        }
+    };
 
     const handlePartyClientChange = (e) => {
         const { name, value } = e.target;
@@ -130,32 +226,44 @@ const GenerateXMLStructureForm = () => {
     const generatePDF = () => {
         const doc = new jsPDF("portrait", "pt", "a4"); // A4 vertical
 
+        // Margen para el borde
+        const margin = 40;
+        const pageWidth = doc.internal.pageSize.getWidth();
+
+        // Dibujar borde alrededor de todo el contenido
+        doc.setLineWidth(0.9);
+
+        // Contenido del PDF
         doc.setFont("helvetica", "bold");
         doc.setFontSize(18);
-        doc.text("Representaciones HIDALGO", 40, 40);
+        doc.text("Representaciones HIDALGO", margin + 10, margin + 30);
         doc.setFont("helvetica", "normal");
         doc.setFontSize(10);
-        doc.text("Fabricación y Venta por Mayor y Menor de Muebles", 40, 55);
-        doc.text("para el Hogar Metálicos y de Madera", 40, 67);
-        doc.text("Colchones en General", 40, 79);
+        doc.text("Fabricación y Venta por Mayor y Menor de Muebles", margin + 10, margin + 45);
+        doc.text("para el Hogar Metálicos y de Madera", margin + 10, margin + 57);
+        doc.text("Colchones en General", margin + 10, margin + 69);
 
         // Nota de venta
         doc.setFont("helvetica", "bold");
         doc.setFontSize(14);
-        doc.text(`COMPROBANTE DE PAGO N° ${noteSalesInformation.NoteID}`, 350, 50);
+        doc.text(`COMPROBANTE DE PAGO `, 350, margin + 30);
+
+        // Agrandar la letra del número de comprobante
+        doc.setFontSize(16); // Tamaño de fuente más grande
+        doc.text(`N° ${noteSalesInformation.NoteID}`, 405, margin + 50);
 
         // Fecha
         doc.setFont("helvetica", "normal");
         doc.setFontSize(12);
-        doc.text(`Fecha: ${noteSalesInformation.IssueDate}`, 350, 68);
+        doc.text(`Fecha: ${noteSalesInformation.IssueDate}`, 350, margin + 73);
 
         // Datos del cliente
         doc.setFontSize(11);
-        doc.text("Nombre de cliente:", 40, 120);
-        doc.text(partyClient.RegistrationName || "", 134, 120);
+        doc.text("Nombre de cliente:", margin + 10, margin + 90);
+        doc.text(partyClient.RegistrationName || "", margin + 94, margin + 90);
 
         // Reducir espacio entre Cliente y la tabla
-        const startTableY = 135; // Antes 160, ahora más arriba
+        const startTableY = margin + 105; // Antes 160, ahora más arriba
 
         // Columnas de la tabla
         const tableColumn = ["CANT.", "DESCRIP.", "PRECIO UNIT.", "PRECIO TOTAL"];
@@ -197,7 +305,7 @@ const GenerateXMLStructureForm = () => {
             },
             tableLineColor: [0, 0, 0],
             tableLineWidth: 0.5,
-            margin: { left: 40, right: 40 },
+            margin: { left: margin, right: margin },
             didDrawCell: function (data) {
                 if (data.row.index === tableRows.length - 1) {
                     doc.setFont("helvetica", "bold");
@@ -205,29 +313,41 @@ const GenerateXMLStructureForm = () => {
             },
         });
 
+        // Obtener la posición Y final de la tabla
+        const finalY = doc.lastAutoTable.finalY;
+
+        // Agregar texto "NOTA" en la parte inferior izquierda
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10);
+        doc.text("NOTA:", margin + 10, finalY + 20);
+        doc.setFont("helvetica", "normal");
+        doc.text("Sirvase a canjear por su boleta de venta o factura", margin + 50, finalY + 20);
+
+        // Dibujar una línea para la firma (40 espacios más abajo)
+        const lineY = finalY + 60; // 40 espacios más abajo
+        doc.setLineWidth(0.5);
+        doc.line(230, lineY, 330, lineY); // Línea horizontal para la firma
+
+        // Agregar "Cancelado" debajo de la línea
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+        doc.text("Cancelado", 250, lineY + 20);
+
+        // Ajustar el borde para que termine 10px más abajo de "Cancelado"
+        const borderBottomY = lineY + 40; // 10px más abajo de "Cancelado"
+        doc.setLineWidth(0.9); // Grosor de la línea del borde
+        doc.rect(
+            margin - 14, // Agrandar 14px a la izquierda
+            margin - 5,  // Agrandar 5px arriba
+            pageWidth - 2 * margin + 28, // Agrandar 28px en total (14px por lado)
+            borderBottomY - margin + 5 // Ajustar altura para terminar 10px más abajo de "Cancelado"
+        );
+
         // Guardamos
         doc.save(`NotaVenta_${noteSalesInformation.NoteID}.pdf`);
     };
 
-    const handleGenerate = async () => {
-        try {
-            await callCreateAutomatic();
-            await callCreateInProcess();
-            generatePDF();
-            await SalesNoteService.incrementSalesNote();
 
-            // Mostrar mensaje de éxito
-            setShowSuccess(true);
-
-            // Recargar la página después de 2 segundos
-            setTimeout(() => {
-                window.location.reload();
-            }, 2000);
-
-        } catch (error) {
-            console.error("Error durante el proceso:", error);
-        }
-    };
 
     return (
         <div style={styles.container}>
@@ -241,7 +361,7 @@ const GenerateXMLStructureForm = () => {
                 CONSTANCIA DE PAGO N° {noteSalesInformation.NoteID}
             </h1>
             <div style={styles.dateText}>
-                Fecha: {noteSalesInformation.IssueDate}
+                Fecha: {noteSalesInformation.IssueDate || getPeruCurrentDate()}
             </div>
 
             <div style={styles.section}>
@@ -419,6 +539,19 @@ const styles = {
         borderRadius: "4px",
         backgroundColor: "#ffffff", // Fondo blanco
         color: "#212529", // Texto oscuro
+    },
+    successMessage: {
+        position: 'fixed',
+        top: '20px',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        backgroundColor: '#4CAF50',
+        color: 'white',
+        padding: '15px 30px',
+        borderRadius: '5px',
+        boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
+        zIndex: 1000,
+        animation: 'slideIn 0.5s ease-out'
     },
     addItemButton: {
         marginTop: "10px",
