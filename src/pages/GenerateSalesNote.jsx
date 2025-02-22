@@ -246,15 +246,15 @@ const GenerateXMLStructureForm = () => {
         // Nota de venta
         doc.setFont("helvetica", "bold");
         doc.setFontSize(14);
-        doc.text(`COMPROBANTE DE PAGO `, 350, margin + 30);
+        doc.text(`NOTA DE VENTA `, 380, margin + 30);
 
         // Agrandar la letra del número de comprobante
-        doc.setFontSize(16); // Tamaño de fuente más grande
-        doc.text(`N° ${noteSalesInformation.NoteID}`, 405, margin + 50);
+        doc.setFontSize(18); // Tamaño de fuente más grande
+        doc.text(`N° ${noteSalesInformation.NoteID}`, 405, margin + 52);
 
         // Fecha
         doc.setFont("helvetica", "normal");
-        doc.setFontSize(12);
+        doc.setFontSize(13);
         doc.text(`Fecha: ${noteSalesInformation.IssueDate}`, 350, margin + 73);
 
         // Datos del cliente
