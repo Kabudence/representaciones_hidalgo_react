@@ -255,19 +255,15 @@ const GenerateXMLStructureForm = () => {
         // Fecha
         doc.setFont("helvetica", "normal");
         doc.setFontSize(13);
-        doc.text(`Fecha: ${noteSalesInformation.IssueDate}`, 350, margin + 73);
+        doc.text(`Fecha: ${noteSalesInformation.IssueDate}`, 370, margin + 83);
 
         // Datos del cliente
         doc.setFontSize(11);
         doc.text("Nombre de cliente:", margin + 10, margin + 90);
-        doc.text(partyClient.RegistrationName || "", margin + 105, margin + 90);
-
-        // Agregar DNI debajo del nombre del cliente
-        doc.text("DNI:", margin + 10, margin + 105); // 15px debajo del nombre
-        doc.text(partyClient.IdentifyCode || "", margin + 40, margin + 105);
+        doc.text(partyClient.RegistrationName || "", margin + 103, margin + 90);
 
         // Reducir espacio entre Cliente y la tabla
-        const startTableY = margin + 120; // Ajustado para dejar espacio para el DNI
+        const startTableY = margin + 105; // Antes 160, ahora más arriba
 
         // Columnas de la tabla
         const tableColumn = ["CANT.", "DESCRIP.", "PRECIO UNIT.", "PRECIO TOTAL"];
@@ -350,6 +346,7 @@ const GenerateXMLStructureForm = () => {
         // Guardamos
         doc.save(`NotaVenta_${noteSalesInformation.NoteID}.pdf`);
     };
+
 
 
     return (
