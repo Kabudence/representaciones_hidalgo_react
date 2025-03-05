@@ -197,6 +197,8 @@ const VentasAdvancedSearch = ({ onSearch, onClear }) => {
                     <option value="">Estado</option>
                     <option value="COMPLETADO">COMPLETADO</option>
                     <option value="EN PROCESO">EN PROCESO</option>
+                    <option value="ANULADO">ANULADO</option>
+
                 </select>
                 <div style={{ display: "flex", justifyContent: "center", gap: "10px" }}>
                     <button type="submit" style={styles.button}>
