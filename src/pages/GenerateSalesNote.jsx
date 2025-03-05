@@ -206,7 +206,7 @@ const GenerateXMLStructureForm = () => {
             const data = {
                 tip_mov: 1,
                 tip_docum: "09",
-                num_docum: `N - ${noteSalesInformation.NoteID}`, // Formato solicitado
+                num_docum: `N006 - ${noteSalesInformation.NoteID}`, // Formato solicitado
                 ruc_cliente: partyClient.IdentifyCode,
                 vvta: operationInfo.Amount,
                 igv: operationInfo.IGV,
