@@ -23,8 +23,8 @@ const AuthBox = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         const url = isRegister
-            ? "https://web-production-927a.up.railway.app/api/auth/register"
-            : "https://web-production-927a.up.railway.app/api/auth/login";
+            ? "https://salesmanagerproject-production.up.railway.app/api/auth/register"
+            : "https://salesmanagerproject-production.up.railway.app/api/auth/login";
 
         try {
             const response = await fetch(url, {
