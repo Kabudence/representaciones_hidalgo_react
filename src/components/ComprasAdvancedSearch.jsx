@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import  { useState } from "react";
 import PropTypes from "prop-types";
 
 const ComprasAdvancedSearch = ({ onSearch }) => {
@@ -185,6 +185,7 @@ const ComprasAdvancedSearch = ({ onSearch }) => {
                     <option value="">Estado</option>
                     <option value="COMPLETADO">COMPLETADO</option>
                     <option value="EN PROCESO">EN PROCESO</option>
+                    <option value="ANULADO">ANULADO</option>
                 </select>
                 <button type="submit" style={styles.button}>
                     Buscar
