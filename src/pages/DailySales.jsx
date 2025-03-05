@@ -4,11 +4,22 @@ import dailySalesService from "../services/dailySalesService";
 import SaleDetailsModal from "../components/SaleDetailsModal.jsx";
 
 const DailySales = () => {
+    // Estado para ventas diarias
     const [sales, setSales] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [selectedIdCab, setSelectedIdCab] = useState(null); // Para abrir el modal
+
+    // Estado para el modal de detalles de venta
+    const [selectedIdCab, setSelectedIdCab] = useState(null);
     const [showModal, setShowModal] = useState(false);
 
+    // Estado para el historial de ventas
+    const [historicalSales, setHistoricalSales] = useState([]);
+    const [historicalPage, setHistoricalPage] = useState(1);
+    const [totalHistorical, setTotalHistorical] = useState(0);
+    const [isHistoricalLoading, setIsHistoricalLoading] = useState(false);
+    const [showHistorical, setShowHistorical] = useState(false);
+
+    // Cargar las ventas diarias al montar el componente
     useEffect(() => {
         fetchSales();
     }, []);
@@ -24,8 +35,14 @@ const DailySales = () => {
         }
     };
 
-    const openModal = (idcab) => {
-        setSelectedIdCab(idcab);
+    // Función para abrir el modal. Agregamos un log para ver el id que llega.
+    const openModal = (id) => {
+        console.log("openModal llamado con id:", id);
+        if (!id) {
+            console.warn("No se ha recibido un id válido para el modal.");
+            return;
+        }
+        setSelectedIdCab(id);
         setShowModal(true);
     };
 
@@ -34,47 +51,156 @@ const DailySales = () => {
         setSelectedIdCab(null);
     };
 
-    if (isLoading) {
-        return (
-            <div style={styles.container}>
-                <h2 style={styles.title}>Ventas Diarias</h2>
-                <p>Cargando...</p>
-            </div>
-        );
-    }
+    // Función para cargar una página del historial
+    const loadHistoricalSales = async (page = 1) => {
+        setIsHistoricalLoading(true);
+        try {
+            const result = await dailySalesService.getPage(page, 10);
+            console.log(`Ventas históricas página ${page}:`, result);
+            if (page === 1) {
+                setHistoricalSales(result.ventas);
+            } else {
+                setHistoricalSales((prev) => [...prev, ...result.ventas]);
+            }
+            setTotalHistorical(result.total);
+            setHistoricalPage(page);
+        } catch (error) {
+            console.error("Error al cargar ventas históricas:", error);
+        } finally {
+            setIsHistoricalLoading(false);
+        }
+    };
 
-    if (!sales || sales.length === 0) {
-        return (
-            <div style={styles.container}>
-                <h2 style={styles.title}>Ventas Diarias</h2>
-                <p>No hay ventas registradas hoy.</p>
-            </div>
-        );
-    }
+    // Muestra u oculta la sección histórica
+    const handleShowHistorical = () => {
+        if (!showHistorical) {
+            loadHistoricalSales(1);
+        }
+        setShowHistorical(!showHistorical);
+    };
+
+    // Cargar la siguiente página del historial
+    const handleLoadMore = () => {
+        const nextPage = historicalPage + 1;
+        loadHistoricalSales(nextPage);
+    };
 
     return (
         <div style={styles.container}>
             <h2 style={styles.title}>Ventas Diarias</h2>
-            <div style={styles.cardList}>
-                {sales.map((venta, index) => (
-                    <div key={index} style={styles.card}>
-                        <h3 style={styles.cardTitle}>
-                            {venta.num_docum || "Sin número de documento"}
-                        </h3>
-                        <p style={styles.cardText}>Cliente: {venta.cliente || "N/A"}</p>
-                        <p style={styles.cardText}>Estado: {venta.estado || "N/A"}</p>
-                        <p style={styles.cardText}>IGV: {venta.igv || "0.00"}</p>
-                        <p style={styles.cardText}>Valor de venta: {venta.vvta || "0.00"}</p>
-                        <p style={styles.cardText}>Total: {venta.total || "0.00"}</p>
-                        <button
-                            style={styles.button}
-                            onClick={() => openModal(venta.idmov)}
-                        >
-                            Más Información
-                        </button>
-                    </div>
-                ))}
+            {isLoading ? (
+                <p>Cargando ventas diarias...</p>
+            ) : (
+                <>
+                    {sales.length === 0 ? (
+                        <p>No hay ventas registradas hoy.</p>
+                    ) : (
+                        <div style={styles.cardList}>
+                            {sales.map((venta, index) => (
+                                <div key={index} style={styles.card}>
+                                    <h3 style={styles.cardTitle}>
+                                        {venta.num_docum || "Sin número de documento"}
+                                    </h3>
+                                    <p style={styles.cardText}>
+                                        Cliente: {venta.cliente || "N/A"}
+                                    </p>
+                                    <p style={styles.cardText}>
+                                        Estado: {venta.estado || "N/A"}
+                                    </p>
+                                    <p style={styles.cardText}>
+                                        IGV: {venta.igv || "0.00"}
+                                    </p>
+                                    <p style={styles.cardText}>
+                                        Valor de venta: {venta.vvta || "0.00"}
+                                    </p>
+                                    <p style={styles.cardText}>
+                                        Total: {venta.total || "0.00"}
+                                    </p>
+                                    <button
+                                        style={styles.button}
+                                        onClick={() => {
+                                            console.log("Venta diaria:", venta);
+                                            openModal(venta.idmov);
+                                        }}
+                                    >
+                                        Más Información
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </>
+            )}
+
+            {/* Botón para mostrar u ocultar el registro histórico */}
+            <div style={{ marginTop: "20px", textAlign: "center" }}>
+                <button style={styles.button} onClick={handleShowHistorical}>
+                    {showHistorical ? "Ocultar Registro Histórico" : "MOSTRAR REGISTRO HISTÓRICO"}
+                </button>
             </div>
+
+            {/* Sección de historial */}
+            {showHistorical && (
+                <div style={{ marginTop: "20px" }}>
+                    <h2 style={styles.title}>Registro Histórico</h2>
+                    {isHistoricalLoading && historicalPage === 1 ? (
+                        <p>Cargando registro histórico...</p>
+                    ) : (
+                        <>
+                            {historicalSales.length === 0 ? (
+                                <p>No hay registros históricos.</p>
+                            ) : (
+                                <div style={styles.cardList}>
+                                    {historicalSales.map((venta, index) => (
+                                        <div key={index} style={styles.card}>
+                                            <h3 style={styles.cardTitle}>
+                                                {venta.num_docum || "Sin número de documento"}
+                                            </h3>
+                                            <p style={styles.cardText}>
+                                                Cliente: {venta.cliente || "N/A"}
+                                            </p>
+                                            <p style={styles.cardText}>
+                                                Estado: {venta.estado || "N/A"}
+                                            </p>
+                                            <p style={styles.cardText}>
+                                                IGV: {venta.igv || "0.00"}
+                                            </p>
+                                            <p style={styles.cardText}>
+                                                Valor de venta: {venta.vvta || "0.00"}
+                                            </p>
+                                            <p style={styles.cardText}>
+                                                Total: {venta.total || "0.00"}
+                                            </p>
+                                            <button
+                                                style={styles.button}
+                                                onClick={() => {
+                                                    console.log("Venta histórica:", venta);
+                                                    // Aquí se utiliza "venta.idmov" o "venta.idcab" según lo que tenga cada registro
+                                                    openModal(venta.idmov || venta.idcab);
+                                                }}
+                                            >
+                                                Más Información
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                            {/* Botón para cargar más registros si aún hay más */}
+                            {historicalSales.length < totalHistorical && (
+                                <div style={{ textAlign: "center", marginTop: "10px" }}>
+                                    {isHistoricalLoading ? (
+                                        <p>Cargando más...</p>
+                                    ) : (
+                                        <button style={styles.button} onClick={handleLoadMore}>
+                                            Ver más...
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+                        </>
+                    )}
+                </div>
+            )}
 
             {showModal && selectedIdCab && (
                 <SaleDetailsModal idcab={selectedIdCab} onClose={closeModal} />
