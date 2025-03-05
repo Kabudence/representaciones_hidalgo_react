@@ -16,6 +16,13 @@ const dailySalesService = {
         // El backend retorna { fotos: [...] }
         return response.data?.fotos || [];
     },
+
+    getPage: async (page = 1, size = 10) => {
+        const response = await api.get(`/ventas/daily/?page=${page}&size=${size}`);
+
+        return response.data; // { ventas: [], total: number }
+    },
+
 };
 
 export default dailySalesService;
