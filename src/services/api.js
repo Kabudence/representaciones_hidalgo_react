@@ -1,7 +1,8 @@
 import axios from "axios";
 
 const api = axios.create({
-    baseURL: "https://web-production-927a.up.railway.app/api", // URL de tu backend
+    baseURL: "https://salesmanagerproject-production.up.railway.app/api"
+    // baseURL: "http://127.0.0.1:5000/api", // URL de tu backend
 
 });
 
