@@ -37,7 +37,6 @@ const DailySales = () => {
 
     // Función para abrir el modal. Agregamos un log para ver el id que llega.
     const openModal = (id) => {
-        console.log("openModal llamado con id:", id);
         if (!id) {
             console.warn("No se ha recibido un id válido para el modal.");
             return;
@@ -56,7 +55,6 @@ const DailySales = () => {
         setIsHistoricalLoading(true);
         try {
             const result = await dailySalesService.getPage(page, 10);
-            console.log(`Ventas históricas página ${page}:`, result);
             if (page === 1) {
                 setHistoricalSales(result.ventas);
             } else {
@@ -119,7 +117,6 @@ const DailySales = () => {
                                     <button
                                         style={styles.button}
                                         onClick={() => {
-                                            console.log("Venta diaria:", venta);
                                             openModal(venta.idmov);
                                         }}
                                     >
@@ -174,7 +171,6 @@ const DailySales = () => {
                                             <button
                                                 style={styles.button}
                                                 onClick={() => {
-                                                    console.log("Venta histórica:", venta);
                                                     // Aquí se utiliza "venta.idmov" o "venta.idcab" según lo que tenga cada registro
                                                     openModal(venta.idmov || venta.idcab);
                                                 }}

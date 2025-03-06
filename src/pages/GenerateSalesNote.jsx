@@ -57,80 +57,48 @@ const GenerateXMLStructureForm = () => {
 
 
     useEffect(() => {
-        console.log("Estado noteSalesInformation actualizado:", noteSalesInformation);
     }, [noteSalesInformation]);
 
     useEffect(() => {
-        console.log("Estado showSuccess actualizado:", showSuccess);
     }, [showSuccess]);
 
     const handleGenerate = async () => {
         try {
-            console.log("[1] Iniciando proceso de venta...");
 
             // 1. Ejecutar las operaciones en orden
-            console.log("[2] Ejecutando callCreateAutomatic...");
             await callCreateAutomatic();
-            console.log("[3] callCreateAutomatic completado");
 
-            console.log("[4] Ejecutando callCreateInProcess...");
             await callCreateInProcess();
-            console.log("[5] callCreateInProcess completado");
 
-            console.log("[6] Generando PDF...");
             generatePDF();
-            console.log("[7] PDF generado");
 
             // 2. Incrementar el número de nota ANTES de obtenerlo
-            console.log("[8] Incrementando número de nota...");
             await SalesNoteService.incrementSalesNote();
-            console.log("[9] Número incrementado");
 
-            console.log("[10] Obteniendo nuevo número de nota...");
             const nextNumber = await SalesNoteService.getCurrentSalesNote();
-            console.log("[11] Nuevo número obtenido:", nextNumber);
 
             const currentDate = getPeruCurrentDate(); // <-- Reemplazar línea anterior
-            console.log("[12] Nueva fecha (Perú):", currentDate);
 
-            // 3. Mostrar mensaje de éxito
-            console.log("[13] Mostrando mensaje de éxito...");
             setShowSuccess(true);
-            console.log("[14] Estado showSuccess después de set:", showSuccess); // Esto no se verá actualizado todavía
 
-            // 4. Reiniciar campos
-            console.log("[15] Reiniciando campos...");
-            console.log("Estado ANTES de reinicio:", {
-                partyClient,
-                itemList: itemList.length,
-                newItem,
-                editingIndex
-            });
+
 
             setPartyClient({ AddressTypeCode: "0000", RegistrationName: "", IdentifyCode: "" });
             setItemList([]);
             setNewItem({ ItemName: "", ItemQuantity: "", ItemPrice: "" });
             setEditingIndex(-1);
 
-            console.log("[16] Campos reiniciados (estado pendiente de actualizar)");
 
             // 5. Actualizar número de nota
-            console.log("[17] Actualizando número de nota en estado...");
             setNoteSalesInformation({
                 NoteID: nextNumber.toString(),
                 IssueDate: currentDate
             });
-            console.log("[18] Estado noteSalesInformation después de set:", {
-                NoteID: nextNumber.toString(),
-                IssueDate: currentDate // <-- Usar fecha ajustada
-            });
+
 
             // 6. Programar ocultar mensaje
-            console.log("[19] Programando ocultar mensaje...");
             setTimeout(() => {
-                console.log("[20] Ocultando mensaje...");
                 setShowSuccess(false);
-                console.log("[21] Estado después de ocultar mensaje:", showSuccess);
             }, 2000);
 
         } catch (error) {
@@ -215,7 +183,6 @@ const GenerateXMLStructureForm = () => {
                 ItemList: itemList,
             };
             const response = await api.post("/regmovcab/create-inprocess", data);
-            console.log("Venta en proceso creada:", response.data);
             return response.data;
         } catch (error) {
             console.error("Error creando venta en proceso:", error);

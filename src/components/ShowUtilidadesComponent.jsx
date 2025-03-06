@@ -129,7 +129,6 @@ const ShowUtilidadesComponent = () => {
             alert("No se encontró el código para la empresa seleccionada");
             return;
         }
-        console.log("handleGetUtilidadesPorEmpresa - Label:", label, "Fechas:", startDate, endDate, "Código:", empresa);
 
         try {
             const data = await utilidadesService.getUtilidadesPorEmpresa(
