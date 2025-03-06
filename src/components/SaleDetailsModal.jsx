@@ -27,7 +27,6 @@ const SaleDetailsModal = ({ idcab, onClose }) => {
 
     const loadPhoto = async () => {
         setIsLoading(true);
-        print(restarCincoHoras(currentPhoto.fecha));
         try {
             // Pedimos 2 fotos (limit=2). Si llegan 2, hay "hasNext".
             const photos = await dailySalesService.getPhotosByIdCab(
@@ -61,14 +60,6 @@ const SaleDetailsModal = ({ idcab, onClose }) => {
             setHasNext(true);
         }
     };
-
-    function restarCincoHoras(fecha) {
-        // Convertir la entrada a objeto Date, si aún no lo es
-        const fechaOriginal = new Date(fecha);
-        // Restar 5 horas
-        fechaOriginal.setHours(fechaOriginal.getHours() - 5);
-        return fechaOriginal;
-    }
 
     return (
         <div style={styles.overlay}>
