@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import dailySalesService from "../services/dailySalesService";
 import PropTypes from "prop-types";
+import moment from "moment-timezone";
 
 // Para decodificar la foto en Base64
 function base64ToBlob(base64Data) {
@@ -83,7 +84,7 @@ const SaleDetailsModal = ({ idcab, onClose }) => {
 
                         <p>Precio vendido: {currentPhoto.precio_vendido}</p>
                         <p>Cantidad: {currentPhoto.cantidad}</p>
-                        <p>Fecha: {currentPhoto.fecha}</p>
+                        <p>Fecha: {moment.utc(currentPhoto.fecha).add(5, "hours").format("YYYY-MM-DD")}</p>
 
                         {/* Botones anterior / siguiente */}
                         <div style={styles.navButtons}>
