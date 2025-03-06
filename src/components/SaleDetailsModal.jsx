@@ -27,6 +27,7 @@ const SaleDetailsModal = ({ idcab, onClose }) => {
 
     const loadPhoto = async () => {
         setIsLoading(true);
+        print(restarCincoHoras(currentPhoto.fecha));
         try {
             // Pedimos 2 fotos (limit=2). Si llegan 2, hay "hasNext".
             const photos = await dailySalesService.getPhotosByIdCab(
@@ -91,7 +92,7 @@ const SaleDetailsModal = ({ idcab, onClose }) => {
 
                         <p>Precio vendido: {currentPhoto.precio_vendido}</p>
                         <p>Cantidad: {currentPhoto.cantidad}</p>
-                        <p>Fecha: {restarCincoHoras(currentPhoto.fecha)}</p>
+                        <p>Fecha: {currentPhoto.fecha}</p>
 
                         {/* Botones anterior / siguiente */}
                         <div style={styles.navButtons}>
