@@ -7,7 +7,7 @@ const Navbar = () => {
     const navigate = useNavigate();
 
     const handleLogout = () => {
-        localStorage.removeItem("authData"); // Eliminar authData del sessionStorage
+        sessionStorage.removeItem("authData"); // Eliminar authData del sessionStorage
         navigate("/"); // Redirigir a la página de inicio
     };
 

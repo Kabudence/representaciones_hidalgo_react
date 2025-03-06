@@ -8,7 +8,7 @@ const Home = () => {
     useEffect(() => {
         // Función para chequear autenticación en sessionStorage
         const checkAuth = () => {
-            const authData = localStorage.getItem("authData");
+            const authData = sessionStorage.getItem("authData");
             setIsAuthenticated(!!authData); // Convierte a booleano
         };
 

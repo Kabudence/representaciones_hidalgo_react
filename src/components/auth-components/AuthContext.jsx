@@ -14,17 +14,17 @@ export const AuthProvider = ({ children }) => {
 
 
     const login = (data) => {
-        localStorage.setItem("authData", JSON.stringify(data));
+        sessionStorage.setItem("authData", JSON.stringify(data));
         setAuthData(data); // Esto actualiza el contexto global
     };
 
     const logout = () => {
-        localStorage.removeItem("authData"); // Limpiar sessionStorage
+        sessionStorage.removeItem("authData"); // Limpiar sessionStorage
         setAuthData({ token: null, role: null, username: null });
     };
 
     const loadAuthData = () => {
-        const savedData = localStorage.getItem("authData");
+        const savedData = sessionStorage.getItem("authData");
         if (savedData) {
             try {
                 const parsedData = JSON.parse(savedData);

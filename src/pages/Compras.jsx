@@ -32,7 +32,7 @@ const Compras = () => {
     });
     useEffect(() => {
         // Obtener authData desde sessionStorage
-        const storedAuthData = localStorage.getItem("authData");
+        const storedAuthData = sessionStorage.getItem("authData");
 
         if (storedAuthData) {
             try {

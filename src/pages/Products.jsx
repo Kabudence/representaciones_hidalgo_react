@@ -20,7 +20,7 @@ const Products = () => {
     const itemsPerPage = 10;
 
     useEffect(() => {
-        const storedUserData = localStorage.getItem("authData");
+        const storedUserData = sessionStorage.getItem("authData");
         if (storedUserData) {
             const { role } = JSON.parse(storedUserData);
             setRole(role);
