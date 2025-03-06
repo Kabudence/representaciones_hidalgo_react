@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from "react";
 import dailySalesService from "../services/dailySalesService";
 import PropTypes from "prop-types";
-import moment from "moment-timezone";
 
 // Para decodificar la foto en Base64
 function base64ToBlob(base64Data) {
@@ -62,6 +61,14 @@ const SaleDetailsModal = ({ idcab, onClose }) => {
         }
     };
 
+    function restarCincoHoras(fecha) {
+        // Convertir la entrada a objeto Date, si aún no lo es
+        const fechaOriginal = new Date(fecha);
+        // Restar 5 horas
+        fechaOriginal.setHours(fechaOriginal.getHours() - 5);
+        return fechaOriginal;
+    }
+
     return (
         <div style={styles.overlay}>
             <div style={styles.modal}>
@@ -84,7 +91,7 @@ const SaleDetailsModal = ({ idcab, onClose }) => {
 
                         <p>Precio vendido: {currentPhoto.precio_vendido}</p>
                         <p>Cantidad: {currentPhoto.cantidad}</p>
-                        <p>Fecha: {moment.utc(currentPhoto.fecha).add(5, "hours")}</p>
+                        <p>Fecha: {restarCincoHoras(currentPhoto.fecha)}</p>
 
                         {/* Botones anterior / siguiente */}
                         <div style={styles.navButtons}>
