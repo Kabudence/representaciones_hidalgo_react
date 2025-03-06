@@ -84,7 +84,7 @@ const SaleDetailsModal = ({ idcab, onClose }) => {
 
                         <p>Precio vendido: {currentPhoto.precio_vendido}</p>
                         <p>Cantidad: {currentPhoto.cantidad}</p>
-                        <p>Fecha: {moment.utc(currentPhoto.fecha).add(5, "hours").format("YYYY-MM-DD")}</p>
+                        <p>Fecha: {moment.utc(currentPhoto.fecha).add(5, "hours")}</p>
 
                         {/* Botones anterior / siguiente */}
                         <div style={styles.navButtons}>
