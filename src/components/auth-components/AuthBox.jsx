@@ -47,7 +47,7 @@ const AuthBox = () => {
                         username: data.username,
                     });
 
-                    sessionStorage.setItem("authData", JSON.stringify({
+                    localStorage.setItem("authData", JSON.stringify({
                         token: data.access_token,
                         role: data.role,
                         username: data.username,

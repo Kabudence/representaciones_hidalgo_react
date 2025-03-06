@@ -20,7 +20,7 @@ const Clientes = () => {
 
     useEffect(() => {
         // Obtener authData desde sessionStorage
-        const storedAuthData = sessionStorage.getItem("authData");
+        const storedAuthData = localStorage.getItem("authData");
         if (storedAuthData) {
             try {
                 const parsedAuthData = JSON.parse(storedAuthData);

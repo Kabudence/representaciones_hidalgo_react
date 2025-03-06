@@ -20,7 +20,7 @@ const Providers = () => {
 
     useEffect(() => {
         // Intentamos obtener authData desde sessionStorage
-        const storedAuthData = sessionStorage.getItem("authData");
+        const storedAuthData = localStorage.getItem("authData");
 
         if (storedAuthData) {
             try {
