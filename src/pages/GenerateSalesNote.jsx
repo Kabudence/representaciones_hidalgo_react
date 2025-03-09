@@ -401,7 +401,9 @@ const GenerateXMLStructureForm = () => {
                                         <div style={styles.itemText}>
                                             <strong>{item.ItemName}</strong> —
                                             Cant: {item.ItemQuantity} —
-                                            Precio: {item.ItemPrice}
+                                            Precio Unit: S/ {item.ItemPrice} —
+                                            Total: S/ {(parseFloat(item.ItemQuantity) * parseFloat(item.ItemPrice)).toFixed(2)}
+
                                         </div>
                                         <div style={styles.buttonGroup}>
                                             <button
@@ -421,6 +423,13 @@ const GenerateXMLStructureForm = () => {
                                 </li>
                             ))}
                         </ul>
+                        {/* Después del </ul> */}
+                        <div style={styles.totalContainer}>
+                            <strong>Total General: </strong>
+                            S/ {itemList.reduce((total, item) => {
+                            return total + (parseFloat(item.ItemQuantity) * parseFloat(item.ItemPrice));
+                        }, 0).toFixed(2)}
+                        </div>
                     </div>
                 )}
             </div>
@@ -433,6 +442,11 @@ const GenerateXMLStructureForm = () => {
 };
 
 const styles = {
+
+    buttonGroup: {
+       paddingTop: 5,
+        paddingBottom: 5,
+    },
     container: {
         margin: "40px auto",
         padding: "40px",
@@ -445,6 +459,15 @@ const styles = {
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
+    },
+    totalContainer: {
+        marginTop: "15px",
+        padding: "10px",
+        backgroundColor: "#f8f9fa",
+        borderRadius: "5px",
+        textAlign: "right",
+        fontSize: "25px",
+        borderTop: "2px solid #dee2e6",
     },
     editButton: {
         backgroundColor: "#ffc107",
@@ -567,5 +590,6 @@ const styles = {
         marginTop: "20px",
     },
 };
+
 
 export default GenerateXMLStructureForm;
