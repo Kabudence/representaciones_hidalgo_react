@@ -3,6 +3,9 @@ import jsPDF from "jspdf";
 import "jspdf-autotable";
 import api from "../services/api";
 import SalesNoteService from "../services/salesNoteService.js";
+import CancelSaleModal from "../components/CancelSaleModal.jsx";
+
+import {TbZoomCancelFilled} from "react-icons/tb";
 
 const GenerateXMLStructureForm = () => {
     const [partyClient, setPartyClient] = useState({
@@ -18,6 +21,8 @@ const GenerateXMLStructureForm = () => {
 
     const [itemList, setItemList] = useState([]);
     const [showSuccess, setShowSuccess] = useState(false);
+    const [showCancelModal, setShowCancelModal] = useState(false);
+
     const [newItem, setNewItem] = useState({
         ItemName: "",
         ItemQuantity: "",
@@ -318,15 +323,26 @@ const GenerateXMLStructureForm = () => {
 
     return (
         <div style={styles.container}>
+
             {/* Mensaje de éxito */}
             {showSuccess && (
                 <div style={styles.successMessage}>
                     ¡VENTA GENERADA CON ÉXITO!
                 </div>
             )}
+            <div style={styles.titulo}>
             <h1 style={styles.headerTitle}>
                 CONSTANCIA DE PAGO N° {noteSalesInformation.NoteID}
             </h1>
+                <button
+                    type="button"
+                    onClick={() => setShowCancelModal(true)}
+                    style={styles.cancelButton}
+                >
+                    <TbZoomCancelFilled />
+
+                </button>
+            </div>
             <div style={styles.dateText}>
                 Fecha: {noteSalesInformation.IssueDate || getPeruCurrentDate()}
             </div>
@@ -430,6 +446,7 @@ const GenerateXMLStructureForm = () => {
                             return total + (parseFloat(item.ItemQuantity) * parseFloat(item.ItemPrice));
                         }, 0).toFixed(2)}
                         </div>
+
                     </div>
                 )}
             </div>
@@ -437,6 +454,15 @@ const GenerateXMLStructureForm = () => {
             <button type="button" onClick={handleGenerate} style={styles.generateButton}>
                 Completar Compra
             </button>
+
+            {/* Renderiza el modal de cancelación si showCancelModal es true */}
+            {showCancelModal && (
+                <CancelSaleModal
+
+                    onClose={() => setShowCancelModal(false)}
+                    onSuccess={() => setShowCancelModal(false)}
+                />
+            )}
         </div>
     );
 };
@@ -447,6 +473,7 @@ const styles = {
        paddingTop: 5,
         paddingBottom: 5,
     },
+
     container: {
         margin: "40px auto",
         padding: "40px",
@@ -460,6 +487,16 @@ const styles = {
         flexDirection: "column",
         alignItems: "center",
     },
+    titulo: {
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between", // Asegura que los elementos se separen
+        padding: "10px 20px",
+        backgroundColor: "#f2f2f2",
+        borderRadius: "8px",
+        marginBottom: "20px",
+    },
+
     totalContainer: {
         marginTop: "15px",
         padding: "10px",
@@ -489,10 +526,10 @@ const styles = {
         fontWeight: "bold",
     },
     headerTitle: {
-        textAlign: "center",
         fontSize: "28px",
-        marginBottom: "10px",
+        margin: 0,
         color: "#333",
+        flexGrow: 1,
     },
     dateText: {
         fontSize: "16px",
@@ -588,6 +625,20 @@ const styles = {
         width: "100%",
         overflowX: "auto",
         marginTop: "20px",
+    },
+    cancelButton: {
+        backgroundColor: "#dc3545",
+        border: "none",
+        borderRadius: "50%",
+        width: "40px",
+        height: "40px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        cursor: "pointer",
+        marginLeft: "20px",
+        outline: "none",
+        fontSize: "26px",
     },
 };
 

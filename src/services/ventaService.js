@@ -30,6 +30,10 @@ const ventaService = {
         return response.data; // { ventas: [], total: number }
     },
 
+
+
+
+
     advancedSearch: async (filters) => {
         const query = new URLSearchParams(filters).toString();
         const response = await api.get(`/ventas/advanced-search?${query}`);
