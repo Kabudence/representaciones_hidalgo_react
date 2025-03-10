@@ -402,7 +402,7 @@ const GenerateXMLStructureForm = () => {
                                             <strong>{item.ItemName}</strong> —
                                             Cant: {item.ItemQuantity} —
                                             Precio Unit: S/ {item.ItemPrice} —
-                                            Total: S/ {(parseFloat(item.ItemQuantity) * parseFloat(item.ItemPrice)).toFixed(2)}
+                                            Subtotal: S/ {(parseFloat(item.ItemQuantity) * parseFloat(item.ItemPrice)).toFixed(2)}
 
                                         </div>
                                         <div style={styles.buttonGroup}>
@@ -425,7 +425,7 @@ const GenerateXMLStructureForm = () => {
                         </ul>
                         {/* Después del </ul> */}
                         <div style={styles.totalContainer}>
-                            <strong>Total General: </strong>
+                            <strong>Total : </strong>
                             S/ {itemList.reduce((total, item) => {
                             return total + (parseFloat(item.ItemQuantity) * parseFloat(item.ItemPrice));
                         }, 0).toFixed(2)}
