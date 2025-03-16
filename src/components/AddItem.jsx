@@ -47,6 +47,7 @@ const AddItem = ({ onAddItem, onCancel }) => {
 
     const handleSelectProduct = (product) => {
         setSelectedProduct(product);
+
         // Se establece el precio sugerido (se usa prventa si está definido)
         setPrecio(product.prventa || 0);
         // Reiniciamos cantidad e IGV
@@ -60,6 +61,7 @@ const AddItem = ({ onAddItem, onCancel }) => {
             alert("Seleccione un producto");
             return;
         }
+        console.log(selectedProduct);
         // Construir el objeto item a agregar
         const item = {
             producto: selectedProduct.nomproducto,
@@ -67,6 +69,7 @@ const AddItem = ({ onAddItem, onCancel }) => {
             cantidad: cantidad,
             precio: precio,
             igv: igv,
+
         };
         onAddItem(item);
     };
@@ -103,6 +106,11 @@ const AddItem = ({ onAddItem, onCancel }) => {
                     <p>
                         Producto seleccionado:{" "}
                         <strong>{selectedProduct.nomproducto}</strong>
+
+                    </p>
+                    <p>
+                        {" "}Stock actual :{" "}
+                        <strong>{selectedProduct.st_act}</strong>
                     </p>
                     <div style={styles.fieldGroup}>
                         <label style={styles.fieldLabel}>Cantidad:</label>
@@ -185,6 +193,7 @@ const styles = {
         marginBottom: "10px",
         borderTop: "1px solid #ccc",
         paddingTop: "10px",
+        fontSize: "20px",
     },
     fieldGroup: {
         marginBottom: "5px",
