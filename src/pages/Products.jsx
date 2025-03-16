@@ -1,11 +1,11 @@
 import {useState, useEffect} from "react";
 import Product from "../models/Product";
-import HistoryModal from "../components/HistoryModal";
 import ProductForm from "../components/ProductForm.jsx";
 import Pagination from "../components/Pagination";
 import productService from "../services/productService";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
+import HistoryModal from "../components/HistoryMOdal.jsx";
 
 const Products = () => {
     const [products, setProducts] = useState([]);
