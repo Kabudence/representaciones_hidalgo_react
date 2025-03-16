@@ -1,5 +1,6 @@
 import {useState, useEffect} from "react";
 import Product from "../models/Product";
+import HistoryModal from "../components/HistoryModal";
 import ProductForm from "../components/ProductForm.jsx";
 import Pagination from "../components/Pagination";
 import productService from "../services/productService";
@@ -16,8 +17,16 @@ const Products = () => {
     const [loading, setLoading] = useState(true);
     const [filteredProducts, setFilteredProducts] = useState([]);
     const [role, setRole] = useState(null);
+    const [showHistoryModal, setShowHistoryModal] = useState(false);
+    const [historyProductId, setHistoryProductId] = useState(null);
+
 
     const itemsPerPage = 10;
+
+    const handleOpenHistory = (idprod) => {
+        setHistoryProductId(idprod);
+        setShowHistoryModal(true);
+    };
 
     useEffect(() => {
         const storedUserData = sessionStorage.getItem("authData");
@@ -301,6 +310,13 @@ const Products = () => {
                                 >
                                     Eliminar
                                 </button>
+                                <button
+                                    style={styles.recordButton}
+                                    onClick={() => handleOpenHistory(product.id)}
+                                >
+                                    Historial
+                                </button>
+
                             </td>
                         </tr>
                     ) : (
@@ -334,6 +350,12 @@ const Products = () => {
                 currentPage={currentPage}
                 onPageChange={handlePageChange}
             />
+            {showHistoryModal && (
+                <HistoryModal
+                    idprod={historyProductId}
+                    onClose={() => setShowHistoryModal(false)}
+                />
+            )}
             {showModal && (
                 <div style={styles.modalOverlay}>
                     <div style={styles.modal}>
@@ -374,6 +396,15 @@ const styles = {
         marginBottom: "20px",
         display: "flex",
         alignItems: "center",
+    },
+    recordButton: {
+        backgroundColor: "#2196F3",
+        border: "none",
+        padding: "8px 16px",
+        borderRadius: "5px",
+        marginLeft: "5px",
+        cursor: "pointer",
+        color: "white",
     },
     searchInput: {
         width: "100%",
@@ -434,12 +465,17 @@ const styles = {
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
+        zIndex: 1000,
     },
     modal: {
         backgroundColor: "white",
-        padding: "30px",
+        padding: "20px",
         borderRadius: "8px",
-        width: "400px",
+        width: "90%",
+        maxWidth: "600px",
+        maxHeight: "90vh",
+        overflowY: "auto",
+        boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
     },
 };
 
