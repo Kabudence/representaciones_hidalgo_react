@@ -6,6 +6,7 @@ import SalesNoteService from "../services/salesNoteService.js";
 import CancelSaleModal from "../components/CancelSaleModal.jsx";
 
 import {TbZoomCancelFilled} from "react-icons/tb";
+import AddItem from "../components/AddItem.jsx";
 
 const GenerateXMLStructureForm = () => {
     const [partyClient, setPartyClient] = useState({
@@ -13,21 +14,18 @@ const GenerateXMLStructureForm = () => {
         RegistrationName: "",
         IdentifyCode: "",
     });
+    const [editingIndex, setEditingIndex] = useState(-1);
 
     const [noteSalesInformation, setNoteSalesInformation] = useState({
         NoteID: "",
         IssueDate: "",
     });
-
+    const [showAddItemModal, setShowAddItemModal] = useState(false);
     const [itemList, setItemList] = useState([]);
     const [showSuccess, setShowSuccess] = useState(false);
     const [showCancelModal, setShowCancelModal] = useState(false);
 
-    const [newItem, setNewItem] = useState({
-        ItemName: "",
-        ItemQuantity: "",
-        ItemPrice: "",
-    });
+
     const getPeruCurrentDate = () => {
         const date = new Date();
         date.setHours(date.getHours() - 5); // Ajuste UTC-5
@@ -39,7 +37,29 @@ const GenerateXMLStructureForm = () => {
         ].join('/');
     };
 
-    const [editingIndex, setEditingIndex] = useState(-1);
+
+
+    // Función modificada para manejar edición y creación
+    const handleAddItemFromModal = (item) => {
+        const newItem = {
+            ItemName: item.producto,
+            ItemQuantity: item.cantidad,
+            ItemPrice: item.precio,
+            IGV: item.igv || "0"
+        };
+
+        if (editingIndex !== -1) {
+            // Modificar ítem existente
+            const updatedItems = [...itemList];
+            updatedItems[editingIndex] = newItem;
+            setItemList(updatedItems);
+            setEditingIndex(-1);
+        } else {
+            // Agregar nuevo ítem
+            setItemList(prev => [...prev, newItem]);
+        }
+        setShowAddItemModal(false);
+    };
 
     useEffect(() => {
         const fetchNextNote = async () => {
@@ -90,8 +110,6 @@ const GenerateXMLStructureForm = () => {
 
             setPartyClient({ AddressTypeCode: "0000", RegistrationName: "", IdentifyCode: "" });
             setItemList([]);
-            setNewItem({ ItemName: "", ItemQuantity: "", ItemPrice: "" });
-            setEditingIndex(-1);
 
 
             // 5. Actualizar número de nota
@@ -116,24 +134,7 @@ const GenerateXMLStructureForm = () => {
         setPartyClient((prev) => ({ ...prev, [name]: value }));
     };
 
-    const handleNewItemChange = (e) => {
-        const { name, value } = e.target;
-        setNewItem((prev) => ({ ...prev, [name]: value }));
-    };
 
-    const addItem = () => {
-        if (newItem.ItemName.trim() !== "") {
-            if (editingIndex === -1) {
-                setItemList((prev) => [...prev, newItem]);
-            } else {
-                const updatedItems = [...itemList];
-                updatedItems[editingIndex] = newItem;
-                setItemList(updatedItems);
-                setEditingIndex(-1);
-            }
-            setNewItem({ ItemName: "", ItemQuantity: "", ItemPrice: "" });
-        }
-    };
 
     const deleteItem = (index) => {
         const updatedItems = itemList.filter((_, i) => i !== index);
@@ -142,7 +143,7 @@ const GenerateXMLStructureForm = () => {
 
     const editItem = (index) => {
         setEditingIndex(index);
-        setNewItem(itemList[index]);
+        setShowAddItemModal(true);
     };
 
     const computeOperationInformation = () => {
@@ -323,30 +324,33 @@ const GenerateXMLStructureForm = () => {
 
     return (
         <div style={styles.container}>
-
             {/* Mensaje de éxito */}
             {showSuccess && (
                 <div style={styles.successMessage}>
                     ¡VENTA GENERADA CON ÉXITO!
                 </div>
             )}
+
+            {/* Encabezado con título y botón de cancelar */}
             <div style={styles.titulo}>
-            <h1 style={styles.headerTitle}>
-                CONSTANCIA DE PAGO N° {noteSalesInformation.NoteID}
-            </h1>
+                <h1 style={styles.headerTitle}>
+                    CONSTANCIA DE PAGO N° {noteSalesInformation.NoteID}
+                </h1>
                 <button
                     type="button"
                     onClick={() => setShowCancelModal(true)}
                     style={styles.cancelButton}
                 >
                     <TbZoomCancelFilled />
-
                 </button>
             </div>
+
+            {/* Fecha */}
             <div style={styles.dateText}>
                 Fecha: {noteSalesInformation.IssueDate || getPeruCurrentDate()}
             </div>
 
+            {/* Sección de datos del cliente */}
             <div style={styles.section}>
                 <h2 style={styles.sectionTitle}>Datos del Cliente</h2>
                 <label style={styles.label}>
@@ -371,42 +375,23 @@ const GenerateXMLStructureForm = () => {
                 </label>
             </div>
 
+            {/* Sección de ítems */}
             <div style={styles.section}>
                 <h2 style={styles.sectionTitle}>Ítems</h2>
-                <label style={styles.label}>
-                    Descripción:
-                    <input
-                        type="text"
-                        name="ItemName"
-                        value={newItem.ItemName}
-                        onChange={handleNewItemChange}
-                        style={styles.input}
-                    />
-                </label>
-                <label style={styles.label}>
-                    Cantidad:
-                    <input
-                        type="number"
-                        name="ItemQuantity"
-                        value={newItem.ItemQuantity}
-                        onChange={handleNewItemChange}
-                        style={styles.input}
-                    />
-                </label>
-                <label style={styles.label}>
-                    Precio:
-                    <input
-                        type="number"
-                        name="ItemPrice"
-                        value={newItem.ItemPrice}
-                        onChange={handleNewItemChange}
-                        style={styles.input}
-                    />
-                </label>
-                <button type="button" onClick={addItem} style={styles.addItemButton}>
-                    {editingIndex === -1 ? "Agregar Ítem" : "Guardar Cambios"}
+
+                {/* Botón para abrir modal de AddItem */}
+                <button
+                    type="button"
+                    onClick={() => setShowAddItemModal(true)}
+                    style={{
+                        ...styles.addItemButton,
+
+                    }}
+                >
+                    {editingIndex !== -1 ? "Editando Producto" : "Agregar Producto"}
                 </button>
 
+                {/* Lista de ítems agregados */}
                 {itemList.length > 0 && (
                     <div style={styles.currentItems}>
                         <h3 style={styles.subTitle}>Ítems Agregados</h3>
@@ -419,7 +404,6 @@ const GenerateXMLStructureForm = () => {
                                             Cant: {item.ItemQuantity} —
                                             Precio Unit: S/ {item.ItemPrice} —
                                             Subtotal: S/ {(parseFloat(item.ItemQuantity) * parseFloat(item.ItemPrice)).toFixed(2)}
-
                                         </div>
                                         <div style={styles.buttonGroup}>
                                             <button
@@ -439,29 +423,45 @@ const GenerateXMLStructureForm = () => {
                                 </li>
                             ))}
                         </ul>
-                        {/* Después del </ul> */}
+
+                        {/* Total */}
                         <div style={styles.totalContainer}>
                             <strong>Total : </strong>
                             S/ {itemList.reduce((total, item) => {
                             return total + (parseFloat(item.ItemQuantity) * parseFloat(item.ItemPrice));
                         }, 0).toFixed(2)}
                         </div>
-
                     </div>
                 )}
             </div>
 
-            <button type="button" onClick={handleGenerate} style={styles.generateButton}>
+            {/* Botón principal de compra */}
+            <button
+                type="button"
+                onClick={handleGenerate}
+                style={styles.generateButton}
+            >
                 Completar Compra
             </button>
 
-            {/* Renderiza el modal de cancelación si showCancelModal es true */}
+            {/* Modal de cancelación */}
             {showCancelModal && (
                 <CancelSaleModal
-
                     onClose={() => setShowCancelModal(false)}
                     onSuccess={() => setShowCancelModal(false)}
                 />
+            )}
+
+            {/* Modal de AddItem */}
+            {showAddItemModal && (
+                <div style={styles.modalOverlay}>
+                    <div style={styles.modalContent}>
+                        <AddItem
+                            onAddItem={handleAddItemFromModal}
+                            onCancel={() => setShowAddItemModal(false)}
+                        />
+                    </div>
+                </div>
             )}
         </div>
     );
@@ -487,6 +487,7 @@ const styles = {
         flexDirection: "column",
         alignItems: "center",
     },
+
     titulo: {
         display: "flex",
         alignItems: "center",
@@ -580,15 +581,7 @@ const styles = {
         zIndex: 1000,
         animation: 'slideIn 0.5s ease-out'
     },
-    addItemButton: {
-        marginTop: "10px",
-        padding: "8px 16px",
-        backgroundColor: "#524b4a", // Gris medio como botones de Lines
-        color: "white",
-        border: "none",
-        borderRadius: "5px",
-        cursor: "pointer",
-    },
+
     currentItems: {
         marginTop: "15px",
     },
@@ -640,6 +633,58 @@ const styles = {
         outline: "none",
         fontSize: "26px",
     },
+    modalOverlay: {
+        position: "fixed",
+        top: 0,
+        left: 0,
+        width: "100%",
+        height: "100%",
+        backgroundColor: "rgba(0,0,0,0.5)",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        zIndex: 1000,
+    },
+    modalContent: {
+        backgroundColor: "white",
+        padding: "25px",
+        borderRadius: "12px",
+        width: "90%",
+        maxWidth: "600px",
+        maxHeight: "90vh",
+        overflowY: "auto",
+        boxShadow: "0 8px 30px rgba(0, 0, 0, 0.2)",
+    },
+    addItemButton: {
+        margin: "10px auto", // Centra el botón horizontalmente
+        padding: "12px 24px",
+        backgroundColor: "#FFC107",
+        color: "white",
+        border: "none",
+        borderRadius: "8px",
+        cursor: "pointer",
+        fontWeight: "bold",
+        fontSize: "16px",
+        transition: "all 0.3s ease",
+        display: "block",  // Asegura que el margin auto funcione correctamente
+        alignItems: "center",
+        justifyContent: "center",
+        gap: "8px",
+    },
+
+    itemContainer: {
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        width: "100%",
+        padding: "8px 0",
+    },
+    itemText: {
+        flex: 1,
+        marginRight: "15px",
+        fontSize: "17px",
+    },
+
 };
 
 

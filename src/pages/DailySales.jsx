@@ -1,5 +1,5 @@
 // src/components/DailySales.jsx
-import React, { useState, useEffect } from "react";
+import  { useState, useEffect } from "react";
 import dailySalesService from "../services/dailySalesService";
 import SaleDetailsModal from "../components/SaleDetailsModal.jsx";
 

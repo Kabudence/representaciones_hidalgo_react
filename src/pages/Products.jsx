@@ -41,6 +41,7 @@ const Products = () => {
     const loadProducts = () => {
         productService.getAll()
             .then((data) => {
+                console.log(data);
                 const productObjects = data.map((p) => ({
                     id: p.idprod,
                     _nombreOriginal: p.nomproducto || "Sin Nombre",
