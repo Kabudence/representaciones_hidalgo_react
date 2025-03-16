@@ -10,3 +10,7 @@ body {
     border-bottom: 2px solid #ccc; /* Línea gris clara */
     margin-bottom: 10px; /* Espaciado debajo de la línea */
 }
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}

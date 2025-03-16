@@ -1,7 +1,6 @@
 // src/components/AddItem.jsx
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import PropTypes from "prop-types";
-import Fuse from "fuse.js";
 import productService from "../services/productService";
 
 const AddItem = ({ onAddItem, onCancel }) => {
@@ -18,6 +17,7 @@ const AddItem = ({ onAddItem, onCancel }) => {
         productService
             .getAll()
             .then((data) => {
+                console.log(data);
                 setProducts(data);
                 setFilteredProducts(data);
             })
@@ -26,26 +26,24 @@ const AddItem = ({ onAddItem, onCancel }) => {
             });
     }, []);
 
-    // Configuración de Fuse.js para búsqueda flexible
-    const fuseOptions = {
-        includeScore: true,
-        threshold: 0.3,
-        keys: ["nomproducto"],
-        tokenize: true,
-        findAllMatches: true,
-        useExtendedSearch: true,
-    };
 
-    const fuse = new Fuse(products, fuseOptions);
 
     useEffect(() => {
-        if (searchTerm.trim() === "") {
-            setFilteredProducts(products);
-        } else {
-            const results = fuse.search(searchTerm).map((result) => result.item);
-            setFilteredProducts(results);
-        }
+        const searchDebounce = setTimeout(() => {
+            if (searchTerm.trim()) {
+                productService.search(searchTerm)
+                    .then(results => {
+                        setFilteredProducts(results);
+                    })
+                    .catch(() => setFilteredProducts([]));
+            } else {
+                setFilteredProducts(products);
+            }
+        }, 300);
+
+        return () => clearTimeout(searchDebounce);
     }, [searchTerm, products]);
+
 
     const handleSelectProduct = (product) => {
         setSelectedProduct(product);
