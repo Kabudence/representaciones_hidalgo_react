@@ -22,6 +22,10 @@ const dailySalesService = {
 
         return response.data; // { ventas: [], total: number }
     },
+    getVentaByNumDocum: async (num_docum) => {
+        const response = await api.get(`/ventas/${num_docum}`);
+        return response.data;
+    },
 
 };
 

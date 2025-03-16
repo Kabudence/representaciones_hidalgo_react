@@ -1,13 +1,16 @@
 // src/components/DailySales.jsx
-import  { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import dailySalesService from "../services/dailySalesService";
 import SaleDetailsModal from "../components/SaleDetailsModal.jsx";
+import { FaSearch } from "react-icons/fa";
 
 const DailySales = () => {
     // Estado para ventas diarias
+    const [role, setRole] = useState(null);
     const [sales, setSales] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
-
+    const [searchTerm, setSearchTerm] = useState("");
+    const [isSearching, setIsSearching] = useState(false);
     // Estado para el modal de detalles de venta
     const [selectedIdCab, setSelectedIdCab] = useState(null);
     const [showModal, setShowModal] = useState(false);
@@ -23,6 +26,14 @@ const DailySales = () => {
     useEffect(() => {
         fetchSales();
     }, []);
+    useEffect(() => {
+        const storedUserData = sessionStorage.getItem("authData");
+        if (storedUserData) {
+            const { role } = JSON.parse(storedUserData);
+            setRole(role);
+        }
+        fetchSales();
+    }, []);
 
     const fetchSales = async () => {
         try {
@@ -35,7 +46,7 @@ const DailySales = () => {
         }
     };
 
-    // Función para abrir el modal. Agregamos un log para ver el id que llega.
+    // Función para abrir el modal. Se valida que se reciba un id
     const openModal = (id) => {
         if (!id) {
             console.warn("No se ha recibido un id válido para el modal.");
@@ -50,7 +61,7 @@ const DailySales = () => {
         setSelectedIdCab(null);
     };
 
-    // Función para cargar una página del historial
+    // Función para cargar una página del historial sin búsqueda
     const loadHistoricalSales = async (page = 1) => {
         setIsHistoricalLoading(true);
         try {
@@ -66,7 +77,37 @@ const DailySales = () => {
             console.error("Error al cargar ventas históricas:", error);
         } finally {
             setIsHistoricalLoading(false);
+            setIsSearching(false);
         }
+    };
+
+    // Función de búsqueda actualizada para usar getVentaByNumDocum
+    const handleSearch = async () => {
+        if (!searchTerm.trim()) {
+            clearSearch();
+            return;
+        }
+        setIsSearching(true);
+        try {
+            const sale = await dailySalesService.getVentaByNumDocum(searchTerm);
+            // Si se encuentra una venta, la envolvemos en un arreglo; de lo contrario, dejamos el arreglo vacío.
+            if (sale && !sale.error) {
+                setHistoricalSales([sale]);
+            } else {
+                setHistoricalSales([]);
+            }
+        } catch (error) {
+            console.error("Error al buscar venta por número de documento:", error);
+            setHistoricalSales([]);
+        } finally {
+            setIsSearching(false);
+        }
+    };
+
+    // Función para resetear la búsqueda y cargar la primera página del historial
+    const clearSearch = () => {
+        setSearchTerm("");
+        loadHistoricalSales(1);
     };
 
     // Muestra u oculta la sección histórica
@@ -130,16 +171,46 @@ const DailySales = () => {
             )}
 
             {/* Botón para mostrar u ocultar el registro histórico */}
-            <div style={{ marginTop: "20px", textAlign: "center" }}>
-                <button style={styles.button} onClick={handleShowHistorical}>
-                    {showHistorical ? "Ocultar Registro Histórico" : "MOSTRAR REGISTRO HISTÓRICO"}
-                </button>
-            </div>
+            {role === "admin" && (
+                <div style={{ marginTop: "20px", textAlign: "center" }}>
+                    <button style={styles.button} onClick={handleShowHistorical}>
+                        {showHistorical ? "Ocultar Registro Histórico" : "MOSTRAR REGISTRO HISTÓRICO"}
+                    </button>
+                </div>
+            )}
 
             {/* Sección de historial */}
             {showHistorical && (
                 <div style={{ marginTop: "20px" }}>
                     <h2 style={styles.title}>Registro Histórico</h2>
+                    <div style={styles.searchContainer}>
+                        <div style={styles.searchInputGroup}>
+                            <input
+                                type="text"
+                                placeholder="Buscar por número de documento..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                style={styles.searchInput}
+                                onKeyPress={(e) => e.key === "Enter" && handleSearch()}
+                            />
+                            <button
+                                style={styles.searchButton}
+                                onClick={handleSearch}
+                                disabled={isSearching}
+                            >
+                                <FaSearch />
+                            </button>
+                            {searchTerm && (
+                                <button
+                                    style={styles.clearButton}
+                                    onClick={clearSearch}
+                                >
+                                    X
+                                </button>
+                            )}
+                        </div>
+                    </div>
+
                     {isHistoricalLoading && historicalPage === 1 ? (
                         <p>Cargando registro histórico...</p>
                     ) : (
@@ -171,7 +242,6 @@ const DailySales = () => {
                                             <button
                                                 style={styles.button}
                                                 onClick={() => {
-                                                    // Aquí se utiliza "venta.idmov" o "venta.idcab" según lo que tenga cada registro
                                                     openModal(venta.idmov || venta.idcab);
                                                 }}
                                             >
@@ -182,7 +252,7 @@ const DailySales = () => {
                                 </div>
                             )}
                             {/* Botón para cargar más registros si aún hay más */}
-                            {historicalSales.length < totalHistorical && (
+                            {!searchTerm && historicalSales.length < totalHistorical && (
                                 <div style={{ textAlign: "center", marginTop: "10px" }}>
                                     {isHistoricalLoading ? (
                                         <p>Cargando más...</p>
@@ -247,6 +317,38 @@ const styles = {
         borderRadius: "5px",
         cursor: "pointer",
         fontWeight: "bold",
+    },
+    searchContainer: {
+        marginBottom: "15px",
+        textAlign: "center",
+    },
+    searchInputGroup: {
+        display: "inline-flex",
+        alignItems: "center",
+    },
+    searchInput: {
+        padding: "8px",
+        border: "1px solid #ccc",
+        borderRadius: "5px 0 0 5px",
+        outline: "none",
+        width: "250px",
+    },
+    searchButton: {
+        padding: "8px 12px",
+        border: "none",
+        backgroundColor: "#524b4a",
+        color: "white",
+        borderRadius: "0 5px 5px 0",
+        cursor: "pointer",
+    },
+    clearButton: {
+        marginLeft: "5px",
+        padding: "8px 12px",
+        border: "none",
+        backgroundColor: "#dc3545",
+        color: "white",
+        borderRadius: "5px",
+        cursor: "pointer",
     },
 };
 
