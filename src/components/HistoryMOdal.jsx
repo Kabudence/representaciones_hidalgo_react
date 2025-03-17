@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import historialService from "../services/historialService";
-import {FiArrowDown, FiArrowUp} from "react-icons/fi";
+import { FiArrowDown, FiArrowUp } from "react-icons/fi";
 
 const HistoryModal = ({ idprod, onClose }) => {
     const [history, setHistory] = useState([]);
@@ -12,7 +12,20 @@ const HistoryModal = ({ idprod, onClose }) => {
             try {
                 const data = await historialService.getByProductId(idprod);
                 console.log("Historial obtenido:", data);
-                setHistory(data);
+                // Ordenamos en forma ascendente (más antiguo primero)
+                const sortedAsc = data.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+                let runningStock = 0;
+                // Calculamos el stock acumulado basándonos solo en la columna "cantidad":
+                // Si es entrada (tipMov === 1) sumamos la cantidad;
+                // Si es salida, restamos la cantidad.
+                const computedHistory = sortedAsc.map((item) => {
+                    runningStock = item.tipMov === 1
+                        ? runningStock - Number(item.cantidad)
+                        : runningStock + Number(item.cantidad);
+                    return { ...item, computedStock: runningStock };
+                });
+                // Invertimos para mostrar el historial de más reciente a más antiguo
+                setHistory(computedHistory.reverse());
             } catch (error) {
                 console.error("Error obteniendo historial:", error);
             } finally {
@@ -47,14 +60,18 @@ const HistoryModal = ({ idprod, onClose }) => {
                                 <th style={styles.th}>DOCUMENTO</th>
                                 <th style={styles.th}>PRODUCTO</th>
                                 <th style={styles.th}>CANTIDAD</th>
+                                <th style={styles.th}>STOCK ACTUAL</th>
                             </tr>
                             </thead>
                             <tbody>
                             {history.map((item, index) => {
+                                // Conservamos la inversión visual de filas y flechas (tal como la tenías)
                                 const isEntrada = item.tipMov === 1;
                                 return (
-                                    <tr key={index} style={isEntrada ? styles.entradaRow : styles.salidaRow}>
-                                        <td style={styles.td}>{new Date(item.fecha).toLocaleDateString("es-PE")}</td>
+                                    <tr key={index} style={isEntrada ? styles.salidaRow : styles.entradaRow}>
+                                        <td style={styles.td}>
+                                            {new Date(item.fecha).toLocaleDateString("es-PE")}
+                                        </td>
                                         <td style={styles.td}>{item.numDocum || "-"}</td>
                                         <td style={styles.td}>
                                             <div style={styles.productCell}>
@@ -65,14 +82,17 @@ const HistoryModal = ({ idprod, onClose }) => {
                                         <td style={styles.td}>
                                             <div style={styles.quantityCell}>
                                                 {isEntrada ? (
-                                                    <FiArrowUp style={{...styles.icon, color: "#2e7d32"}} />
+                                                    <FiArrowDown style={{ ...styles.icon, color: "#c62828" }} />
                                                 ) : (
-                                                    <FiArrowDown style={{...styles.icon, color: "#c62828"}} />
+                                                    <FiArrowUp style={{ ...styles.icon, color: "#2e7d32" }} />
                                                 )}
-                                                <span style={isEntrada ? styles.entradaText : styles.salidaText}>
+                                                <span style={isEntrada ? styles.salidaText : styles.entradaText}>
                                                         {item.cantidad}
                                                     </span>
                                             </div>
+                                        </td>
+                                        <td style={styles.td}>
+                                            {item.computedStock}
                                         </td>
                                     </tr>
                                 );
@@ -86,7 +106,6 @@ const HistoryModal = ({ idprod, onClose }) => {
     );
 };
 
-// Mantener los PropTypes y estilos iguales, añadir esto:
 HistoryModal.propTypes = {
     idprod: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
     onClose: PropTypes.func.isRequired,
@@ -225,6 +244,6 @@ const styles = {
         borderRadius: "50%",
         animation: "spin 1s linear infinite",
     },
-}
+};
 
 export default HistoryModal;
