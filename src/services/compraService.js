@@ -20,7 +20,15 @@ const getAdvancedSearch = async (filters) => {
         throw error;
     }
 };
-
+const cancelCompra = async (numDocum) => {
+    try {
+        const response = await api.put(`/regmovcab/cancel-compra/${numDocum}`);
+        return response.data;
+    } catch (error) {
+        console.error("Error al cancelar la compra:", error);
+        throw error;
+    }
+};
 const createCompra = async (compraData) => {
     try {
         const response = await api.post(`/regmovcab/create-compra`, compraData);
@@ -37,5 +45,6 @@ export default {
     getPaginatedCompras,
     getAdvancedSearch,
     createCompra,
+    cancelCompra,
 
 };

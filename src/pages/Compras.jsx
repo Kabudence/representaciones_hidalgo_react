@@ -6,7 +6,7 @@ import CompraForm from "../components/CompraForm";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import moment from "moment-timezone";
-import {useNavigate} from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 const Compras = () => {
     const [compras, setCompras] = useState([]);
@@ -30,6 +30,7 @@ const Compras = () => {
             contacto: "",
         },
     });
+
     useEffect(() => {
         // Obtener authData desde sessionStorage
         const storedAuthData = sessionStorage.getItem("authData");
@@ -77,8 +78,7 @@ const Compras = () => {
             }));
             setCompras(normalizedCompras);
             setTotalPages(data.totalPages);
-        }
-         finally {
+        } finally {
             setIsLoading(false);
         }
     };
@@ -142,6 +142,7 @@ const Compras = () => {
                 "IGV",
                 "Total",
                 "Estado",
+                "Acciones" // Nueva columna
             ];
             const tableRows = compras.map((compra) => [
                 new Date(compra.fecha).toLocaleDateString("es-PE"),
@@ -154,6 +155,7 @@ const Compras = () => {
                 (parseFloat(compra.igv) || 0).toFixed(2),
                 (parseFloat(compra.total) || 0).toFixed(2),
                 compra.estado || "N/A",
+                "" // Se deja en blanco en el PDF
             ]);
             doc.autoTable({
                 startY: 50,
@@ -203,6 +205,18 @@ const Compras = () => {
         }
     };
 
+    // Nueva función para cancelar compra
+    const handleCancelCompra = async (num_docum) => {
+        if (window.confirm(`¿Estás seguro de anular la compra con documento ${num_docum}?`)) {
+            try {
+                await compraService.cancelCompra(num_docum);
+                fetchCompras(currentPage);
+            } catch (error) {
+                console.error("Error al cancelar la compra:", error);
+            }
+        }
+    };
+
     return (
         <div style={styles.container}>
             <div style={styles.header}>
@@ -236,6 +250,7 @@ const Compras = () => {
                         <th style={styles.tableCell}>IGV</th>
                         <th style={styles.tableCell}>Total</th>
                         <th style={styles.tableCell}>Estado</th>
+                        <th style={styles.tableCell}>Acciones</th> {/* Nueva columna */}
                     </tr>
                     </thead>
                     <tbody>
@@ -262,11 +277,21 @@ const Compras = () => {
                                 >
                                     {compra.estado}
                                 </td>
+                                <td style={styles.tableCell}>
+                                    {compra.estado === "COMPLETADO" && (
+                                        <button
+                                            style={styles.cancelButton}
+                                            onClick={() => handleCancelCompra(compra.num_docum)}
+                                        >
+                                            ANULAR
+                                        </button>
+                                    )}
+                                </td>
                             </tr>
                         ))
                     ) : (
                         <tr>
-                            <td colSpan="10" style={styles.tableCell}>
+                            <td colSpan="11" style={styles.tableCell}>
                                 No se encontraron resultados.
                             </td>
                         </tr>
@@ -286,8 +311,8 @@ const Compras = () => {
                     Anterior
                 </button>
                 <span style={styles.pageIndicator}>
-          Página {currentPage} de {totalPages}
-        </span>
+                    Página {currentPage} de {totalPages}
+                </span>
                 <button
                     onClick={handleNext}
                     disabled={currentPage === totalPages}
@@ -413,6 +438,15 @@ const styles = {
         width: "400px",
         maxHeight: "80vh",
         overflowY: "auto",
+    },
+    cancelButton: {
+        padding: "5px 10px",
+        backgroundColor: "red",
+        color: "white",
+        border: "none",
+        borderRadius: "3px",
+        cursor: "pointer",
+        fontWeight: "bold",
     },
 };
 

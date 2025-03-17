@@ -63,6 +63,7 @@ const DailySales = () => {
 
     // Función para cargar una página del historial sin búsqueda
     const loadHistoricalSales = async (page = 1) => {
+
         setIsHistoricalLoading(true);
         try {
             const result = await dailySalesService.getPage(page, 10);
@@ -90,6 +91,7 @@ const DailySales = () => {
         setIsSearching(true);
         try {
             const sale = await dailySalesService.getVentaByNumDocum(searchTerm);
+            console.log(sale )
             // Si se encuentra una venta, la envolvemos en un arreglo; de lo contrario, dejamos el arreglo vacío.
             if (sale && !sale.error) {
                 setHistoricalSales([sale]);
