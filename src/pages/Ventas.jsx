@@ -1,3 +1,4 @@
+// src/components/Ventas.jsx
 import { useState, useEffect } from "react";
 import ventaService from "../services/ventaService";
 import VentasAdvancedSearch from "../components/VentasAdvancedSearch.jsx";
@@ -6,6 +7,7 @@ import "jspdf-autotable";
 import moment from "moment-timezone";
 import { useNavigate } from "react-router-dom";
 import ShowUtilidadesComponent from "../components/ShowUtilidadesComponent"; // Asegúrate de tener este componente
+import ElementsByIdCab from "../components/ElementsByIdCab"; // Componente de ver detalles
 
 function Ventas() {
     const [ventas, setVentas] = useState([]);
@@ -17,6 +19,8 @@ function Ventas() {
     const [advancedFilters, setAdvancedFilters] = useState(null);
     const [isAuthorized, setIsAuthorized] = useState(false);
     const [showUtilidades, setShowUtilidades] = useState(false);
+    const [showDetailsModal, setShowDetailsModal] = useState(false);
+    const [selectedNumDocum, setSelectedNumDocum] = useState(null);
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -25,7 +29,6 @@ function Ventas() {
         if (storedAuthData) {
             try {
                 const parsedAuthData = JSON.parse(storedAuthData);
-
                 if (parsedAuthData.role === "admin") {
                     setIsAuthorized(true);
                 } else {
@@ -207,6 +210,12 @@ function Ventas() {
         fetchVentas(currentPage);
     }, []);
 
+    // Función para ver elementos de la venta (detalles)
+    const handleViewElements = (num_docum) => {
+        setSelectedNumDocum(num_docum);
+        setShowDetailsModal(true);
+    };
+
     return (
         <div style={styles.container}>
             <div style={styles.header}>
@@ -243,6 +252,7 @@ function Ventas() {
                         <th style={styles.tableCell}>IGV</th>
                         <th style={styles.tableCell}>Total</th>
                         <th style={styles.tableCell}>Estado</th>
+                        <th style={styles.tableCell}>Acciones</th>
                     </tr>
                     </thead>
                     <tbody>
@@ -267,6 +277,16 @@ function Ventas() {
                                 }}
                             >
                                 {venta.estado}
+                            </td>
+                            <td style={styles.tableCell}>
+                                {venta.estado === "COMPLETADO" && (
+                                    <button
+                                        style={styles.viewButton}
+                                        onClick={() => handleViewElements(venta.num_docum)}
+                                    >
+                                        Ver Elementos
+                                    </button>
+                                )}
                             </td>
                         </tr>
                     ))}
@@ -311,9 +331,19 @@ function Ventas() {
                     </div>
                 </div>
             )}
+            {showDetailsModal && (
+                <div style={styles.modalOverlay}>
+                    <div style={styles.modal}>
+                        <ElementsByIdCab
+                            numDocum={selectedNumDocum}
+                            onClose={() => setShowDetailsModal(false)}
+                        />
+                    </div>
+                </div>
+            )}
         </div>
     );
-};
+}
 
 const styles = {
     container: {
@@ -343,14 +373,10 @@ const styles = {
         cursor: "pointer",
         fontWeight: "bold",
     },
-    searchContainer: {
-        marginBottom: "20px",
-    },
-    searchInput: {
-        width: "100%",
-        padding: "10px",
-        border: "1px solid #ccc",
-        borderRadius: "5px",
+    loading: {
+        textAlign: "center",
+        fontSize: "18px",
+        fontWeight: "bold",
     },
     table: {
         width: "100%",
@@ -404,6 +430,7 @@ const styles = {
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
+        zIndex: 9999,
     },
     modal: {
         backgroundColor: "white",
@@ -411,6 +438,15 @@ const styles = {
         borderRadius: "8px",
         width: "600px",
         position: "relative",
+    },
+    viewButton: {
+        padding: "5px 10px",
+        backgroundColor: "blue",
+        color: "white",
+        border: "none",
+        borderRadius: "3px",
+        cursor: "pointer",
+        fontWeight: "bold",
     },
 };
 

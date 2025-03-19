@@ -39,12 +39,21 @@ const createCompra = async (compraData) => {
     }
 
 };
-
+const getCompraDetailsByNumDoc = async (numDocum) => {
+    try {
+        const response = await api.get(`/regmovdet/by-num-doc/${numDocum}`);
+        return response.data;
+    } catch (error) {
+        console.error("Error al obtener detalles de la compra:", error);
+        throw error;
+    }
+};
 
 export default {
     getPaginatedCompras,
     getAdvancedSearch,
     createCompra,
     cancelCompra,
+    getCompraDetailsByNumDoc,
 
 };

@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import compraService from "../services/compraService";
 import ComprasAdvancedSearch from "../components/ComprasAdvancedSearch";
 import CompraForm from "../components/CompraForm";
+import ElementsByIdCab from "../components/ElementsByIdCab"; // Importamos el nuevo componente
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import moment from "moment-timezone";
@@ -18,6 +19,10 @@ const Compras = () => {
     const navigate = useNavigate();
     // Estado para controlar la ventana emergente (modal) de "Generar Compra"
     const [showCompraModal, setShowCompraModal] = useState(false);
+    // Estado para controlar el modal de ver elementos
+    const [showDetailsModal, setShowDetailsModal] = useState(false);
+    const [selectedNumDocum, setSelectedNumDocum] = useState(null);
+
     // Estado inicial para el formulario de compra
     const [compra, setCompra] = useState({
         num_docum: "",
@@ -142,7 +147,7 @@ const Compras = () => {
                 "IGV",
                 "Total",
                 "Estado",
-                "Acciones" // Nueva columna
+                "Acciones"
             ];
             const tableRows = compras.map((compra) => [
                 new Date(compra.fecha).toLocaleDateString("es-PE"),
@@ -155,7 +160,7 @@ const Compras = () => {
                 (parseFloat(compra.igv) || 0).toFixed(2),
                 (parseFloat(compra.total) || 0).toFixed(2),
                 compra.estado || "N/A",
-                "" // Se deja en blanco en el PDF
+                ""
             ]);
             doc.autoTable({
                 startY: 50,
@@ -205,7 +210,7 @@ const Compras = () => {
         }
     };
 
-    // Nueva función para cancelar compra
+    // Función para cancelar compra
     const handleCancelCompra = async (num_docum) => {
         if (window.confirm(`¿Estás seguro de anular la compra con documento ${num_docum}?`)) {
             try {
@@ -215,6 +220,12 @@ const Compras = () => {
                 console.error("Error al cancelar la compra:", error);
             }
         }
+    };
+
+    // Función para ver elementos
+    const handleViewElements = (num_docum) => {
+        setSelectedNumDocum(num_docum);
+        setShowDetailsModal(true);
     };
 
     return (
@@ -250,7 +261,7 @@ const Compras = () => {
                         <th style={styles.tableCell}>IGV</th>
                         <th style={styles.tableCell}>Total</th>
                         <th style={styles.tableCell}>Estado</th>
-                        <th style={styles.tableCell}>Acciones</th> {/* Nueva columna */}
+                        <th style={styles.tableCell}>Acciones</th>
                     </tr>
                     </thead>
                     <tbody>
@@ -279,12 +290,20 @@ const Compras = () => {
                                 </td>
                                 <td style={styles.tableCell}>
                                     {compra.estado === "COMPLETADO" && (
-                                        <button
-                                            style={styles.cancelButton}
-                                            onClick={() => handleCancelCompra(compra.num_docum)}
-                                        >
-                                            ANULAR
-                                        </button>
+                                        <>
+                                            <button
+                                                style={styles.cancelButton}
+                                                onClick={() => handleCancelCompra(compra.num_docum)}
+                                            >
+                                                ANULAR
+                                            </button>
+                                            <button
+                                                style={styles.viewButton}
+                                                onClick={() => handleViewElements(compra.num_docum)}
+                                            >
+                                                Ver Elementos
+                                            </button>
+                                        </>
                                     )}
                                 </td>
                             </tr>
@@ -336,6 +355,13 @@ const Compras = () => {
                         />
                     </div>
                 </div>
+            )}
+
+            {showDetailsModal && (
+                <ElementsByIdCab
+                    numDocum={selectedNumDocum}
+                    onClose={() => setShowDetailsModal(false)}
+                />
             )}
         </div>
     );
@@ -442,6 +468,16 @@ const styles = {
     cancelButton: {
         padding: "5px 10px",
         backgroundColor: "red",
+        color: "white",
+        border: "none",
+        borderRadius: "3px",
+        cursor: "pointer",
+        fontWeight: "bold",
+        marginRight: "5px",
+    },
+    viewButton: {
+        padding: "5px 10px",
+        backgroundColor: "blue",
         color: "white",
         border: "none",
         borderRadius: "3px",
