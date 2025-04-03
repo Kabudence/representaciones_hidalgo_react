@@ -98,45 +98,54 @@ const Products = () => {
         currentPage * itemsPerPage
     );
     const exportToPDF = () => {
-        const doc = new jsPDF("landscape");
+        // 1. Configurar el documento en orientación vertical (portrait)
+        const doc = new jsPDF();
         const now = new Date();
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const rightMargin = 10;
+
+        // Encabezado
         doc.setFontSize(12);
-        doc.text("Tu Empresa", 10, 10);
-        doc.text(`Fecha: ${now.toLocaleDateString("es-PE")}`, 250, 10);
-        doc.text(`Hora: ${now.toLocaleTimeString("es-PE")}`, 250, 15);
+        doc.text("Hidalgo", 10, 10);
+        // Fecha y hora alineadas a la derecha
+        doc.text(`Fecha: ${now.toLocaleDateString("es-PE")}`, pageWidth - rightMargin, 10, { align: "right" });
+        doc.text(`Hora: ${now.toLocaleTimeString("es-PE")}`, pageWidth - rightMargin, 15, { align: "right" });
+
+        // Título centrado
         doc.setFontSize(14);
-        doc.text("Listado de Productos", 148, 30, { align: "center" });
+        doc.text("Listado de Productos", pageWidth / 2, 30, { align: "center" });
 
         const tableColumn = [
             "ID",
             "Nombre",
-            "Unidad de Medida",
             "Stock Inicial",
             "Stock Actual",
-            "Stock Mínimo",
-            "Precio Costo",
             "Precio Venta",
-            "Modelo",
-            "Medida",
         ];
 
-        const tableRows = filteredProducts.map((product) => [
-            product.id,
-            product._nombreOriginal,
-            product.unidad_medida,
-            product.stock_inicial || 0,
-            product.stock_actual || 0,
-            product.stock_minimo || 0,
-            (product.precio_costo || 0).toFixed(2),
-            (product.precio_venta || 0).toFixed(2),
-            product.modelo,
-            product.medida,
-        ]);
+        // 2. Calcular el valor neto total y preparar las filas de la tabla
+        let total = 0;
+        const tableRows = filteredProducts.map((product) => {
+            const valorNeto = (product.stock_actual || 0) * (product.precio_venta || 0);
+            total += valorNeto;
+            return [
+                product.id,
+                product._nombreOriginal,
+                product.stock_inicial || 0,
+                product.stock_actual || 0,
+                (product.precio_venta || 0).toFixed(2),
+            ];
+        });
 
+        // Generar la tabla con encabezado, cuerpo y pie de página (saldo total)
         doc.autoTable({
-            startY: 50,
+            startY: 40,
             head: [tableColumn],
             body: tableRows,
+            // Pie de página: en la penúltima columna aparece "Saldo total" y en la última el valor total
+            foot: [
+                ["", "", "", "Saldo total", total.toFixed(2)]
+            ],
             theme: "grid",
             headStyles: {
                 fillColor: [211, 211, 211],
@@ -147,6 +156,20 @@ const Products = () => {
                 fontSize: 8,
                 textColor: [0, 0, 0],
             },
+            footStyles: {
+                fillColor: [211, 211, 211],
+                textColor: [0, 0, 0],
+                fontSize: 10,
+            },
+            // Añadir numeración de páginas en el pie de cada página
+            didDrawPage: function () {
+                const pageCount = doc.internal.getNumberOfPages();
+                const pageCurrent = doc.internal.getCurrentPageInfo().pageNumber;
+                const str = "Página " + pageCurrent + " de " + pageCount;
+                doc.setFontSize(10);
+                doc.text(str, pageWidth / 2, doc.internal.pageSize.getHeight() - 10, { align: "center" });
+            },
+
         });
 
         doc.save("listado_productos.pdf");
