@@ -98,7 +98,6 @@ const Products = () => {
         currentPage * itemsPerPage
     );
     const exportToPDF = () => {
-        // 1. Configurar el documento en orientación vertical (portrait)
         const doc = new jsPDF();
         const now = new Date();
         const pageWidth = doc.internal.pageSize.getWidth();
@@ -106,8 +105,8 @@ const Products = () => {
 
         // Encabezado
         doc.setFontSize(12);
-        doc.text("Hidalgo", 10, 10);
-        // Fecha y hora alineadas a la derecha
+        doc.text("Representaciones Hidalgo", 10, 10);
+        doc.text("Av. América Norte", 10, 16);
         doc.text(`Fecha: ${now.toLocaleDateString("es-PE")}`, pageWidth - rightMargin, 10, { align: "right" });
         doc.text(`Hora: ${now.toLocaleTimeString("es-PE")}`, pageWidth - rightMargin, 15, { align: "right" });
 
@@ -115,15 +114,8 @@ const Products = () => {
         doc.setFontSize(14);
         doc.text("Listado de Productos", pageWidth / 2, 30, { align: "center" });
 
-        const tableColumn = [
-            "ID",
-            "Nombre",
-            "Stock Inicial",
-            "Stock Actual",
-            "Precio Venta",
-        ];
+        const tableColumn = ["ID", "Nombre", "Stock Inicial", "Stock Actual", "Precio Venta"];
 
-        // 2. Calcular el valor neto total y preparar las filas de la tabla
         let total = 0;
         const tableRows = filteredProducts.map((product) => {
             const valorNeto = (product.stock_actual || 0) * (product.precio_venta || 0);
@@ -137,15 +129,11 @@ const Products = () => {
             ];
         });
 
-        // Generar la tabla con encabezado, cuerpo y pie de página (saldo total)
+        let finalY = 40; // Posición inicial de la tabla
         doc.autoTable({
-            startY: 40,
+            startY: finalY,
             head: [tableColumn],
             body: tableRows,
-            // Pie de página: en la penúltima columna aparece "Saldo total" y en la última el valor total
-            foot: [
-                ["", "", "", "Saldo total", total.toFixed(2)]
-            ],
             theme: "grid",
             headStyles: {
                 fillColor: [211, 211, 211],
@@ -156,24 +144,50 @@ const Products = () => {
                 fontSize: 8,
                 textColor: [0, 0, 0],
             },
-            footStyles: {
-                fillColor: [211, 211, 211],
-                textColor: [0, 0, 0],
-                fontSize: 10,
-            },
-            // Añadir numeración de páginas en el pie de cada página
-            didDrawPage: function () {
+            didDrawPage: function (data) {
+                // Numeración de páginas
                 const pageCount = doc.internal.getNumberOfPages();
                 const pageCurrent = doc.internal.getCurrentPageInfo().pageNumber;
-                const str = "Página " + pageCurrent + " de " + pageCount;
+                const str = `Página ${pageCurrent} de ${pageCount}`;
                 doc.setFontSize(10);
                 doc.text(str, pageWidth / 2, doc.internal.pageSize.getHeight() - 10, { align: "center" });
+                // Se guarda la posición Y final de la tabla
+                finalY = data.cursor.y;
             },
-
         });
+
+        // Dibujar el "Saldo total" solo en la última página con mejor estética
+        const totalPages = doc.internal.getNumberOfPages();
+        doc.setPage(totalPages);
+        const balanceY = finalY + 15; // Posición Y donde se colocará el recuadro y el texto
+
+        // Dimensiones y posición del recuadro
+        const rectWidth = 80;
+        const rectHeight = 12;
+        const rectX = pageWidth - rectWidth - rightMargin;
+
+        // Dibujar fondo del recuadro
+        doc.setFillColor(211, 211, 211); // Color gris claro
+        doc.rect(rectX, balanceY - 10, rectWidth, rectHeight, "F");
+
+        // Establecer fuente en negrita para el texto
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(0, 0, 0);
+
+        // Agregar el texto "Saldo total:" y el valor
+        doc.text("Saldo total:", rectX + 3, balanceY - 2, { align: "left" });
+        doc.text(`S/. ${total.toFixed(2)}`, pageWidth - rightMargin - 3, balanceY - 2, { align: "right" });
+
+        // Restaurar fuente normal si se requiere
+        doc.setFont("helvetica", "normal");
 
         doc.save("listado_productos.pdf");
     };
+
+
+
+
 
     const handleOpenModal = (type, product = null) => {
         setFormType(type);

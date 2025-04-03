@@ -27,7 +27,7 @@ const ShowUtilidadesComponent = () => {
         // Cabecera del PDF
         doc.setFontSize(12);
         doc.text("Representaciones Hidalgo", 10, 10);
-        doc.text("Av. América Norte", 10, 15);
+        doc.text("Av. América Norte", 10, 16);
         doc.text(`Fecha: ${now.toLocaleDateString("es-PE")}`, 250, 10);
         doc.text(`Hora: ${now.toLocaleTimeString("es-PE")}`, 250, 15);
         doc.setFontSize(14);
@@ -125,6 +125,7 @@ const ShowUtilidadesComponent = () => {
         }
         // Obtener el código correspondiente de la etiqueta
         const empresa = empresaMapping[label];
+        console.log(`ID EMPRESA:${empresa}`);
         if (!empresa) {
             alert("No se encontró el código para la empresa seleccionada");
             return;
