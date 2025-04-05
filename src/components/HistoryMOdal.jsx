@@ -14,15 +14,9 @@ const HistoryModal = ({ idprod, onClose }) => {
                 console.log("Historial obtenido:", data);
                 // Ordenamos en forma ascendente (más antiguo primero)
                 const sortedAsc = data.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
-                let runningStock = 0;
-                // Calculamos el stock acumulado basándonos solo en la columna "cantidad":
-                // Si es entrada (tipMov === 1) sumamos la cantidad;
-                // Si es salida, restamos la cantidad.
+                // Ya no se calcula el stock acumulado, simplemente se asigna st_act
                 const computedHistory = sortedAsc.map((item) => {
-                    runningStock = item.tipMov === 1
-                        ? runningStock - Number(item.cantidad)
-                        : runningStock + Number(item.cantidad);
-                    return { ...item, computedStock: runningStock };
+                    return { ...item, computedStock: item.st_act };
                 });
                 // Invertimos para mostrar el historial de más reciente a más antiguo
                 setHistory(computedHistory.reverse());
@@ -35,6 +29,7 @@ const HistoryModal = ({ idprod, onClose }) => {
 
         if (idprod) fetchHistory();
     }, [idprod]);
+
 
     return (
         <div style={styles.modalOverlay}>

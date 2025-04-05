@@ -11,8 +11,10 @@ const historialService = {
                 obj.fecha,
                 obj.producto,   // Usar el campo correcto del response
                 obj.nomproducto, // Corregir camelCase
-                obj.cantidad
-            )
+                obj.cantidad,
+                obj.st_act,
+
+    )
         );
     },
 };
