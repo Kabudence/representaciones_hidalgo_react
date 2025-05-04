@@ -118,14 +118,14 @@ const Products = () => {
 
         let total = 0;
         const tableRows = filteredProducts.map((product) => {
-            const valorNeto = (product.stock_actual || 0) * (product.precio_venta || 0);
+            const valorNeto = (product.stock_actual || 0) * (product.precio_costo || 0);
             total += valorNeto;
             return [
                 product.id,
                 product._nombreOriginal,
                 product.stock_inicial || 0,
                 product.stock_actual || 0,
-                (product.precio_venta || 0).toFixed(2),
+                (product.precio_costo || 0).toFixed(2),
             ];
         });
 
