@@ -61,9 +61,37 @@ const DailySales = () => {
         setSelectedIdCab(null);
     };
 
+    // 🔹 NUEVO: completar venta pidiendo el nombre del vendedor
+    const handleCompleteSale = async (venta) => {
+        if (!venta || !venta.idmov) {
+            console.warn("No se recibió un idmov válido para completar la venta.");
+            return;
+        }
+
+        const vendedor = window.prompt(
+            "Ingrese el nombre (o DNI) de la persona que realizó la venta:"
+        );
+
+        // Si cancelan o dejan vacío, no hacemos nada
+        if (!vendedor || !vendedor.trim()) {
+            return;
+        }
+
+        try {
+            await dailySalesService.changeStateToComplete(venta.idmov, vendedor.trim());
+            // Refrescamos las ventas diarias
+            await fetchSales();
+            // Si está abierto el histórico, lo recargamos en la página actual
+            if (showHistorical) {
+                await loadHistoricalSales(historicalPage);
+            }
+        } catch (error) {
+            console.error("Error al completar la venta:", error);
+        }
+    };
+
     // Función para cargar una página del historial sin búsqueda
     const loadHistoricalSales = async (page = 1) => {
-
         setIsHistoricalLoading(true);
         try {
             const result = await dailySalesService.getPage(page, 10);
@@ -91,7 +119,7 @@ const DailySales = () => {
         setIsSearching(true);
         try {
             const sale = await dailySalesService.getVentaByNumDocum(searchTerm);
-            console.log(sale )
+            console.log(sale);
             // Si se encuentra una venta, la envolvemos en un arreglo; de lo contrario, dejamos el arreglo vacío.
             if (sale && !sale.error) {
                 setHistoricalSales([sale]);
@@ -142,6 +170,20 @@ const DailySales = () => {
                                     <h3 style={styles.cardTitle}>
                                         {venta.num_docum || "Sin número de documento"}
                                     </h3>
+
+                                    {/* NUEVO: etiqueta de estado con color */}
+                                    <p
+                                        style={{
+                                            ...styles.cardText,
+                                            color: venta.estado === "COMPLETADO" ? "blue" : "red",
+                                            fontWeight: "bold",
+                                        }}
+                                    >
+                                        {venta.estado === "COMPLETADO"
+                                            ? "COMPLETADO"
+                                            : "EN PROCESO"}
+                                    </p>
+
                                     <p style={styles.cardText}>
                                         Cliente: {venta.cliente || "N/A"}
                                     </p>
@@ -157,6 +199,7 @@ const DailySales = () => {
                                     <p style={styles.cardText}>
                                         Total: {venta.total || "0.00"}
                                     </p>
+
                                     <button
                                         style={styles.button}
                                         onClick={() => {
@@ -165,6 +208,16 @@ const DailySales = () => {
                                     >
                                         Más Información
                                     </button>
+
+                                    {/* NUEVO: botón para completar venta */}
+                                    {venta.estado !== "COMPLETADO" && (
+                                        <button
+                                            style={{ ...styles.button, marginLeft: "8px" }}
+                                            onClick={() => handleCompleteSale(venta)}
+                                        >
+                                            Marcar como completada
+                                        </button>
+                                    )}
                                 </div>
                             ))}
                         </div>
@@ -226,6 +279,21 @@ const DailySales = () => {
                                             <h3 style={styles.cardTitle}>
                                                 {venta.num_docum || "Sin número de documento"}
                                             </h3>
+
+                                            {/* NUEVO: etiqueta de estado con color */}
+                                            <p
+                                                style={{
+                                                    ...styles.cardText,
+                                                    color:
+                                                        venta.estado === "COMPLETADO" ? "blue" : "red",
+                                                    fontWeight: "bold",
+                                                }}
+                                            >
+                                                {venta.estado === "COMPLETADO"
+                                                    ? "COMPLETADO"
+                                                    : "EN PROCESO"}
+                                            </p>
+
                                             <p style={styles.cardText}>
                                                 Cliente: {venta.cliente || "N/A"}
                                             </p>
@@ -241,6 +309,7 @@ const DailySales = () => {
                                             <p style={styles.cardText}>
                                                 Total: {venta.total || "0.00"}
                                             </p>
+
                                             <button
                                                 style={styles.button}
                                                 onClick={() => {
@@ -249,6 +318,16 @@ const DailySales = () => {
                                             >
                                                 Más Información
                                             </button>
+
+                                            {/* Opcional: también podrías permitir completar desde histórico */}
+                                            {venta.estado !== "COMPLETADO" && (
+                                                <button
+                                                    style={{ ...styles.button, marginLeft: "8px" }}
+                                                    onClick={() => handleCompleteSale(venta)}
+                                                >
+                                                    Marcar como completada
+                                                </button>
+                                            )}
                                         </div>
                                     ))}
                                 </div>
@@ -301,7 +380,11 @@ const styles = {
         borderRadius: "8px",
         padding: "16px",
         boxShadow: "0px 4px 6px rgba(0, 0, 0, 0.1)",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
     },
+
     cardTitle: {
         fontSize: "18px",
         fontWeight: "bold",
@@ -352,6 +435,13 @@ const styles = {
         borderRadius: "5px",
         cursor: "pointer",
     },
+    buttonGroup: {
+        marginTop: "12px",
+        display: "flex",
+        flexDirection: "column",
+        gap: "8px",
+    },
+
 };
 
 export default DailySales;
