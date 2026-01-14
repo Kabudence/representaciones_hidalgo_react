@@ -335,6 +335,7 @@ const Products = () => {
                             <td style={styles.tableCell}>{product.precio_venta.toFixed(2)}</td>
                             <td style={styles.tableCell}>{product.modelo}</td>
                             <td style={styles.tableCell}>{product.medida}</td>
+
                             <td style={styles.tableCell}>
                                 <button
                                     onClick={() => handleOpenModal("Editar", product)}
@@ -342,19 +343,20 @@ const Products = () => {
                                 >
                                     Editar
                                 </button>
+
                                 <button
                                     onClick={() => handleDelete(product.id)}
                                     style={styles.deleteButton}
                                 >
                                     Eliminar
                                 </button>
+
                                 <button
                                     style={styles.recordButton}
                                     onClick={() => handleOpenHistory(product.id)}
                                 >
                                     Historial
                                 </button>
-
                             </td>
                         </tr>
                     ) : (
@@ -366,22 +368,17 @@ const Products = () => {
                             <td style={styles.tableCell}>{product.precio_venta.toFixed(2)}</td>
                             <td style={styles.tableCell}>
                                 <button
-                                    onClick={() => handleOpenModal("Editar", product)}
-                                    style={styles.editButton}
+                                    style={styles.recordButton}
+                                    onClick={() => handleOpenHistory(product.id)}
                                 >
-                                    Editar
-                                </button>
-                                <button
-                                    onClick={() => handleDelete(product.id)}
-                                    style={styles.deleteButton}
-                                >
-                                    Eliminar
+                                    Historial
                                 </button>
                             </td>
                         </tr>
                     )
                 )}
                 </tbody>
+
             </table>
             <Pagination
                 totalPages={totalPages}
