@@ -312,12 +312,13 @@ const Products = () => {
                     </tr>
                 ) : (
                     <tr style={styles.tableHeader}>
-                        <th>Nombre</th>
-                        <th>Modelo</th>
-                        <th>Medida</th>
-                        <th>Stock Actual</th>
-                        <th>Precio Venta</th>
-                        <th>Acciones</th>
+                        <th style={styles.tableHeadCell}>Nombre</th>
+                        <th style={styles.tableHeadCell}>Modelo</th>
+
+
+                        <th style={styles.tableHeadCell} >Medida</th>
+                        <th style={styles.tableHeadCell}>Stock Actual</th>
+                        <th style={styles.tableHeadCell} >Precio Venta</th>
                     </tr>
                 )}
                 </thead>
@@ -335,7 +336,6 @@ const Products = () => {
                             <td style={styles.tableCell}>{product.precio_venta.toFixed(2)}</td>
                             <td style={styles.tableCell}>{product.modelo}</td>
                             <td style={styles.tableCell}>{product.medida}</td>
-
                             <td style={styles.tableCell}>
                                 <button
                                     onClick={() => handleOpenModal("Editar", product)}
@@ -343,20 +343,19 @@ const Products = () => {
                                 >
                                     Editar
                                 </button>
-
                                 <button
                                     onClick={() => handleDelete(product.id)}
                                     style={styles.deleteButton}
                                 >
                                     Eliminar
                                 </button>
-
                                 <button
                                     style={styles.recordButton}
                                     onClick={() => handleOpenHistory(product.id)}
                                 >
                                     Historial
                                 </button>
+
                             </td>
                         </tr>
                     ) : (
@@ -366,19 +365,10 @@ const Products = () => {
                             <td style={styles.tableCell}>{product.medida}</td>
                             <td style={styles.tableCell}>{product.stock_actual}</td>
                             <td style={styles.tableCell}>{product.precio_venta.toFixed(2)}</td>
-                            <td style={styles.tableCell}>
-                                <button
-                                    style={styles.recordButton}
-                                    onClick={() => handleOpenHistory(product.id)}
-                                >
-                                    Historial
-                                </button>
-                            </td>
                         </tr>
                     )
                 )}
                 </tbody>
-
             </table>
             <Pagination
                 totalPages={totalPages}
@@ -447,6 +437,10 @@ const styles = {
         border: "1px solid #ccc",
         borderRadius: "5px",
     },
+    tableHeadCell: {
+        padding: "15px 10px",
+        textAlign: "left",
+    },
     addButton: {
         padding: "10px 20px",
         backgroundColor: "#524b4a",
@@ -456,6 +450,7 @@ const styles = {
         cursor: "pointer",
     },
     table: {
+
         width: "100%",
         borderCollapse: "collapse",
         marginTop: "20px",
