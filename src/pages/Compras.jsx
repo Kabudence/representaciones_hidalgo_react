@@ -133,6 +133,7 @@ const Compras = () => {
                 if (filters.toPrice) filterText += `Precio hasta: S/${filters.toPrice} `;
                 if (filters.providerName) filterText += `Proveedor: ${filters.providerName} `;
                 if (filters.clientRUC) filterText += `RUC Cliente: ${filters.clientRUC} `;
+                if (filters.numDocum) filterText += `N° Documento: ${filters.numDocum} `;
                 if (filters.status) filterText += `Estado: ${filters.status} `;
                 doc.text(filterText, 10, 45);
             }

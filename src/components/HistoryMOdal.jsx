@@ -6,20 +6,21 @@ import { FiArrowDown, FiArrowUp } from "react-icons/fi";
 const HistoryModal = ({ idprod, onClose }) => {
     const [history, setHistory] = useState([]);
     const [loading, setLoading] = useState(true);
-
+    const parseYMDLocal = (ymd) => {
+        const [y, m, d] = ymd.split("-").map(Number);
+        return new Date(y, m - 1, d);
+    };
     useEffect(() => {
         const fetchHistory = async () => {
             try {
                 const data = await historialService.getByProductId(idprod);
                 console.log("Historial obtenido:", data);
-                // Ordenamos en forma ascendente (más antiguo primero)
-                const sortedAsc = data.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
-                // Ya no se calcula el stock acumulado, simplemente se asigna st_act
-                const computedHistory = sortedAsc.map((item) => {
-                    return { ...item, computedStock: item.st_act };
-                });
-                // Invertimos para mostrar el historial de más reciente a más antiguo
-                setHistory(computedHistory.reverse());
+                const computedHistory = data.map((item) => ({
+                    ...item,
+                    computedStock: item.st_act,
+                }));
+                setHistory(computedHistory);
+
             } catch (error) {
                 console.error("Error obteniendo historial:", error);
             } finally {
@@ -65,7 +66,7 @@ const HistoryModal = ({ idprod, onClose }) => {
                                 return (
                                     <tr key={index} style={isEntrada ? styles.salidaRow : styles.entradaRow}>
                                         <td style={styles.td}>
-                                            {new Date(item.fecha).toLocaleDateString("es-PE")}
+                                            {parseYMDLocal(item.fecha).toLocaleDateString("es-PE")}
                                         </td>
                                         <td style={styles.td}>{item.numDocum || "-"}</td>
                                         <td style={styles.td}>

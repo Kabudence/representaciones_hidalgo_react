@@ -16,9 +16,24 @@ const dailySalesService = {
         return response.data?.fotos || [];
     },
 
-    getPage: async (page = 1, size = 10) => {
-        const response = await api.get(`/ventas/daily/?page=${page}&size=${size}`);
-        console.log("🔹 getPage(daily) RESPUESTA:", { page, size, data: response.data });
+    getPage: async (page = 1, size = 10, filters = {}) => {
+        const params = new URLSearchParams({ page, size });
+
+        if (filters.numDocum) {
+            params.append("numDocum", filters.numDocum);
+        }
+
+        if (filters.status) {
+            params.append("status", filters.status);
+        }
+
+        const response = await api.get(`/ventas/daily/?${params.toString()}`);
+        console.log("🔹 getPage(daily) RESPUESTA:", {
+            page,
+            size,
+            filters,
+            data: response.data,
+        });
 
         return response.data; // { ventas: [], total: number }
     },

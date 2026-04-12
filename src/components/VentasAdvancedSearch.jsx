@@ -11,6 +11,7 @@ const VentasAdvancedSearch = ({ onSearch, onClear }) => {
         toDate: "",
         saleType: "",
         clientRUC: "",
+        numDocum: "",
         status: "",
     });
 
@@ -35,6 +36,7 @@ const VentasAdvancedSearch = ({ onSearch, onClear }) => {
             toDate: "",
             saleType: "",
             clientRUC: "",
+            numDocum: "",
             status: "",
         });
         if (onClear) {
@@ -185,6 +187,14 @@ const VentasAdvancedSearch = ({ onSearch, onClear }) => {
                     name="clientRUC"
                     placeholder="RUC del Cliente"
                     value={filters.clientRUC}
+                    onChange={handleChange}
+                    style={styles.input}
+                />
+                <input
+                    type="text"
+                    name="numDocum"
+                    placeholder="Número de Documento"
+                    value={filters.numDocum}
                     onChange={handleChange}
                     style={styles.input}
                 />

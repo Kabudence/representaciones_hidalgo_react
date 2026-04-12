@@ -51,18 +51,34 @@ function Ventas() {
         }
     }, [isAuthorized, currentPage]);
 
+
     const fetchVentas = async (page) => {
+        const totalStart = performance.now(); // ⏱️ Inicio total (carga + render)
+
+        console.log("🔄 Iniciando carga de ventas...");
         setLoading(true);
+
         try {
+            const apiStart = performance.now(); // ⏱️ Inicio de la API
             const data = await ventaService.getPage(page, size);
+            const apiEnd = performance.now();   // ⏱️ Fin de la API
+
+            const apiDuration = (apiEnd - apiStart).toFixed(2);
+            console.log(`⏱️ Tiempo de respuesta de la API: ${apiDuration} ms`);
+
             setVentas(data.ventas);
             setTotal(data.total);
+
+            const totalEnd = performance.now(); // ⏱️ Fin total (después del render del estado)
+            const totalDuration = (totalEnd - totalStart).toFixed(2);
+            console.log(`⏱️ Tiempo total (API + render): ${totalDuration} ms`);
         } catch (error) {
-            console.error("Error al obtener ventas:", error);
+            console.error("❌ Error al obtener ventas:", error);
         } finally {
             setLoading(false);
         }
     };
+
 
     const fetchAdvancedSearchVentas = async (filters, page) => {
         setLoading(true);
@@ -154,6 +170,8 @@ function Ventas() {
                     filterText += `Precio hasta: S/${advancedFilters.toPrice} `;
                 if (advancedFilters.clientRUC)
                     filterText += `RUC Cliente: ${advancedFilters.clientRUC} `;
+                if (advancedFilters.numDocum)
+                    filterText += `N° Documento: ${advancedFilters.numDocum} `;
                 if (advancedFilters.status)
                     filterText += `Estado: ${advancedFilters.status} `;
                 doc.text(filterText, 10, 45);
@@ -206,9 +224,6 @@ function Ventas() {
         }
     };
 
-    useEffect(() => {
-        fetchVentas(currentPage);
-    }, []);
 
     // Función para ver elementos de la venta (detalles)
     const handleViewElements = (num_docum) => {

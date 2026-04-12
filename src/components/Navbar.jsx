@@ -87,7 +87,7 @@ const Navbar = () => {
     return (
         <>
             <nav style={styles.navbar}>
-                <div style={styles.logo}>HIDALGO</div>
+                <div style={styles.logo}>HIDALGO 2.0</div>
                 <ul style={styles.links}>
                     <li><a href="/" style={styles.linkItem}>Home</a></li>
                     <li><a href="/clientes" style={styles.linkItem}>Clientes</a></li>
@@ -100,6 +100,7 @@ const Navbar = () => {
                     <li><a href="/clases" style={styles.linkItem}>Clases</a></li>
                     <li><a href="/daily-sales" style={styles.linkItem}>Ventas diarias</a></li>
                     <li><a href="/nota-venta" style={styles.linkItem}>Nota de venta</a></li>
+                    <li><a href="/boletas" style={styles.linkItem}>Boletas</a></li>
                 </ul>
 
                 {/* Ícono de usuario con Dropdown */}

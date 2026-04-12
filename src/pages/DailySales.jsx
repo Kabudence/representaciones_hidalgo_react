@@ -1,4 +1,4 @@
-// src/components/DailySales.jsx
+// src/pages/DailySales.jsx
 import { useState, useEffect } from "react";
 import dailySalesService from "../services/dailySalesService";
 import SaleDetailsModal from "../components/SaleDetailsModal.jsx";
@@ -10,7 +10,9 @@ const DailySales = () => {
     const [sales, setSales] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
+    const [historicalStatus, setHistoricalStatus] = useState("");
     const [isSearching, setIsSearching] = useState(false);
+
     // Estado para el modal de detalles de venta
     const [selectedIdCab, setSelectedIdCab] = useState(null);
     const [showModal, setShowModal] = useState(false);
@@ -22,10 +24,6 @@ const DailySales = () => {
     const [isHistoricalLoading, setIsHistoricalLoading] = useState(false);
     const [showHistorical, setShowHistorical] = useState(false);
 
-    // Cargar las ventas diarias al montar el componente
-    useEffect(() => {
-        fetchSales();
-    }, []);
     useEffect(() => {
         const storedUserData = sessionStorage.getItem("authData");
         if (storedUserData) {
@@ -46,7 +44,62 @@ const DailySales = () => {
         }
     };
 
-    // Función para abrir el modal. Se valida que se reciba un id
+    const getStatusUI = (estado) => {
+        switch ((estado || "").toUpperCase()) {
+            case "ANULADO":
+                return {
+                    color: "#D1D5DB",
+                    backgroundColor: "rgba(107, 114, 128, 0.18)",
+                    border: "1px solid rgba(156, 163, 175, 0.28)",
+                };
+            case "COMPLETADO":
+                return {
+                    color: "#93C5FD",
+                    backgroundColor: "rgba(59, 130, 246, 0.16)",
+                    border: "1px solid rgba(96, 165, 250, 0.30)",
+                };
+            case "EN PROCESO":
+                return {
+                    color: "#FBBF24",
+                    backgroundColor: "rgba(245, 158, 11, 0.16)",
+                    border: "1px solid rgba(251, 191, 36, 0.30)",
+                };
+            default:
+                return {
+                    color: "#E5E7EB",
+                    backgroundColor: "rgba(255, 255, 255, 0.08)",
+                    border: "1px solid rgba(255, 255, 255, 0.12)",
+                };
+        }
+    };
+
+    const formatSaleDate = (fecha) => {
+        if (!fecha) return "Sin fecha";
+
+        const parsedDate = new Date(fecha);
+
+        if (Number.isNaN(parsedDate.getTime())) {
+            return String(fecha);
+        }
+
+        return parsedDate.toLocaleString("es-PE", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+        });
+    };
+
+    const formatAmount = (value) => {
+        const parsedValue = Number(value);
+        return Number.isNaN(parsedValue) ? "0.00" : parsedValue.toFixed(2);
+    };
+
+    const canCompleteSale = (estado) => {
+        return (estado || "").toUpperCase() === "EN PROCESO";
+    };
+
     const openModal = (id) => {
         if (!id) {
             console.warn("No se ha recibido un id válido para el modal.");
@@ -61,7 +114,6 @@ const DailySales = () => {
         setSelectedIdCab(null);
     };
 
-    // 🔹 NUEVO: completar venta pidiendo el nombre del vendedor
     const handleCompleteSale = async (venta) => {
         if (!venta || !venta.idmov) {
             console.warn("No se recibió un idmov válido para completar la venta.");
@@ -72,16 +124,13 @@ const DailySales = () => {
             "Ingrese el nombre (o DNI) de la persona que realizó la venta:"
         );
 
-        // Si cancelan o dejan vacío, no hacemos nada
         if (!vendedor || !vendedor.trim()) {
             return;
         }
 
         try {
             await dailySalesService.changeStateToComplete(venta.idmov, vendedor.trim());
-            // Refrescamos las ventas diarias
             await fetchSales();
-            // Si está abierto el histórico, lo recargamos en la página actual
             if (showHistorical) {
                 await loadHistoricalSales(historicalPage);
             }
@@ -90,11 +139,15 @@ const DailySales = () => {
         }
     };
 
-    // Función para cargar una página del historial sin búsqueda
-    const loadHistoricalSales = async (page = 1) => {
+    const loadHistoricalSales = async (page = 1, customFilters = null) => {
         setIsHistoricalLoading(true);
         try {
-            const result = await dailySalesService.getPage(page, 10);
+            const activeFilters = customFilters || {
+                numDocum: searchTerm.trim(),
+                status: historicalStatus,
+            };
+
+            const result = await dailySalesService.getPage(page, 10, activeFilters);
             if (page === 1) {
                 setHistoricalSales(result.ventas);
             } else {
@@ -110,37 +163,27 @@ const DailySales = () => {
         }
     };
 
-    // Función de búsqueda actualizada para usar getVentaByNumDocum
     const handleSearch = async () => {
-        if (!searchTerm.trim()) {
+        const filters = {
+            numDocum: searchTerm.trim(),
+            status: historicalStatus,
+        };
+
+        if (!filters.numDocum && !filters.status) {
             clearSearch();
             return;
         }
+
         setIsSearching(true);
-        try {
-            const sale = await dailySalesService.getVentaByNumDocum(searchTerm);
-            console.log(sale);
-            // Si se encuentra una venta, la envolvemos en un arreglo; de lo contrario, dejamos el arreglo vacío.
-            if (sale && !sale.error) {
-                setHistoricalSales([sale]);
-            } else {
-                setHistoricalSales([]);
-            }
-        } catch (error) {
-            console.error("Error al buscar venta por número de documento:", error);
-            setHistoricalSales([]);
-        } finally {
-            setIsSearching(false);
-        }
+        await loadHistoricalSales(1, filters);
     };
 
-    // Función para resetear la búsqueda y cargar la primera página del historial
     const clearSearch = () => {
         setSearchTerm("");
-        loadHistoricalSales(1);
+        setHistoricalStatus("");
+        loadHistoricalSales(1, { numDocum: "", status: "" });
     };
 
-    // Muestra u oculta la sección histórica
     const handleShowHistorical = () => {
         if (!showHistorical) {
             loadHistoricalSales(1);
@@ -148,10 +191,77 @@ const DailySales = () => {
         setShowHistorical(!showHistorical);
     };
 
-    // Cargar la siguiente página del historial
     const handleLoadMore = () => {
         const nextPage = historicalPage + 1;
         loadHistoricalSales(nextPage);
+    };
+
+    const renderSaleCard = (venta, index) => {
+        const statusUI = getStatusUI(venta.estado);
+        const cardKey = venta.idmov || venta.idcab || venta.num_docum || index;
+
+        return (
+            <div key={cardKey} style={styles.card}>
+                <div style={styles.cardHeader}>
+                    <div style={styles.cardHeaderContent}>
+                        <h3 style={styles.cardTitle}>
+                            {venta.num_docum || "Sin número de documento"}
+                        </h3>
+                        <p style={styles.cardDate}>
+                            Fecha: {formatSaleDate(venta.fecha)}
+                        </p>
+                    </div>
+
+                    <span style={{ ...styles.statusBadge, ...statusUI }}>
+                        {venta.estado || "N/A"}
+                    </span>
+                </div>
+
+                <div style={styles.cardDivider} />
+
+                <div style={styles.cardBody}>
+                    <div style={styles.infoRow}>
+                        <span style={styles.infoLabel}>Cliente</span>
+                        <span style={styles.infoValue}>{venta.cliente || "N/A"}</span>
+                    </div>
+
+                    <div style={styles.infoRow}>
+                        <span style={styles.infoLabel}>IGV</span>
+                        <span style={styles.infoValue}>{formatAmount(venta.igv)}</span>
+                    </div>
+                </div>
+
+                <div style={styles.totalsBox}>
+                    <div style={styles.totalRow}>
+                        <span style={styles.totalLabel}>Valor de venta</span>
+                        <span style={styles.totalValue}>{formatAmount(venta.vvta)}</span>
+                    </div>
+
+                    <div style={{ ...styles.totalRow, ...styles.totalRowStrong }}>
+                        <span style={styles.totalLabel}>Total</span>
+                        <span style={styles.totalValue}>{formatAmount(venta.total)}</span>
+                    </div>
+                </div>
+
+                <div style={styles.actionsColumn}>
+                    <button
+                        style={styles.primaryButton}
+                        onClick={() => openModal(venta.idmov || venta.idcab)}
+                    >
+                        Más Información
+                    </button>
+
+                    {canCompleteSale(venta.estado) && (
+                        <button
+                            style={styles.secondaryActionButton}
+                            onClick={() => handleCompleteSale(venta)}
+                        >
+                            Marcar como completada
+                        </button>
+                    )}
+                </div>
+            </div>
+        );
     };
 
     return (
@@ -165,67 +275,12 @@ const DailySales = () => {
                         <p>No hay ventas registradas hoy.</p>
                     ) : (
                         <div style={styles.cardList}>
-                            {sales.map((venta, index) => (
-                                <div key={index} style={styles.card}>
-                                    <h3 style={styles.cardTitle}>
-                                        {venta.num_docum || "Sin número de documento"}
-                                    </h3>
-
-                                    {/* NUEVO: etiqueta de estado con color */}
-                                    <p
-                                        style={{
-                                            ...styles.cardText,
-                                            color: venta.estado === "COMPLETADO" ? "blue" : "red",
-                                            fontWeight: "bold",
-                                        }}
-                                    >
-                                        {venta.estado === "COMPLETADO"
-                                            ? "COMPLETADO"
-                                            : "EN PROCESO"}
-                                    </p>
-
-                                    <p style={styles.cardText}>
-                                        Cliente: {venta.cliente || "N/A"}
-                                    </p>
-                                    <p style={styles.cardText}>
-                                        Estado: {venta.estado || "N/A"}
-                                    </p>
-                                    <p style={styles.cardText}>
-                                        IGV: {venta.igv || "0.00"}
-                                    </p>
-                                    <p style={styles.cardText}>
-                                        Valor de venta: {venta.vvta || "0.00"}
-                                    </p>
-                                    <p style={styles.cardText}>
-                                        Total: {venta.total || "0.00"}
-                                    </p>
-
-                                    <button
-                                        style={styles.button}
-                                        onClick={() => {
-                                            openModal(venta.idmov);
-                                        }}
-                                    >
-                                        Más Información
-                                    </button>
-
-                                    {/* NUEVO: botón para completar venta */}
-                                    {venta.estado !== "COMPLETADO" && (
-                                        <button
-                                            style={{ ...styles.button, marginLeft: "8px" }}
-                                            onClick={() => handleCompleteSale(venta)}
-                                        >
-                                            Marcar como completada
-                                        </button>
-                                    )}
-                                </div>
-                            ))}
+                            {sales.map((venta, index) => renderSaleCard(venta, index))}
                         </div>
                     )}
                 </>
             )}
 
-            {/* Botón para mostrar u ocultar el registro histórico */}
             {role === "admin" && (
                 <div style={{ marginTop: "20px", textAlign: "center" }}>
                     <button style={styles.button} onClick={handleShowHistorical}>
@@ -234,35 +289,53 @@ const DailySales = () => {
                 </div>
             )}
 
-            {/* Sección de historial */}
-            {showHistorical && (
+            {role === "admin" && showHistorical && (
                 <div style={{ marginTop: "20px" }}>
                     <h2 style={styles.title}>Registro Histórico</h2>
                     <div style={styles.searchContainer}>
-                        <div style={styles.searchInputGroup}>
-                            <input
-                                type="text"
-                                placeholder="Buscar por número de documento..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                style={styles.searchInput}
-                                onKeyPress={(e) => e.key === "Enter" && handleSearch()}
-                            />
-                            <button
-                                style={styles.searchButton}
-                                onClick={handleSearch}
-                                disabled={isSearching}
-                            >
-                                <FaSearch />
-                            </button>
-                            {searchTerm && (
-                                <button
-                                    style={styles.clearButton}
-                                    onClick={clearSearch}
+                        <div style={styles.searchFiltersRow}>
+                            <div style={styles.filterField}>
+                                <label style={styles.filterLabel}>Buscar por Estado</label>
+                                <select
+                                    value={historicalStatus}
+                                    onChange={(e) => setHistoricalStatus(e.target.value)}
+                                    style={styles.statusSelect}
                                 >
-                                    X
+                                    <option value="">Todos</option>
+                                    <option value="ANULADO">ANULADO</option>
+                                    <option value="COMPLETADO">COMPLETADO</option>
+                                    <option value="EN PROCESO">EN PROCESO</option>
+                                </select>
+                            </div>
+
+                            <div style={styles.filterField}>
+                                <label style={styles.filterLabel}>Buscar por Número de Documento</label>
+                                <input
+                                    type="text"
+                                    placeholder="Ej. N006 - 55945"
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    style={styles.searchInput}
+                                    onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                                />
+                            </div>
+
+                            <div style={styles.filterActions}>
+                                <button
+                                    style={styles.searchActionButton}
+                                    onClick={handleSearch}
+                                    disabled={isSearching}
+                                >
+                                    <FaSearch />
+                                    <span>Buscar</span>
                                 </button>
-                            )}
+
+                                {(searchTerm || historicalStatus) && (
+                                    <button style={styles.clearButton} onClick={clearSearch}>
+                                        Limpiar
+                                    </button>
+                                )}
+                            </div>
                         </div>
                     </div>
 
@@ -274,66 +347,11 @@ const DailySales = () => {
                                 <p>No hay registros históricos.</p>
                             ) : (
                                 <div style={styles.cardList}>
-                                    {historicalSales.map((venta, index) => (
-                                        <div key={index} style={styles.card}>
-                                            <h3 style={styles.cardTitle}>
-                                                {venta.num_docum || "Sin número de documento"}
-                                            </h3>
-
-                                            {/* NUEVO: etiqueta de estado con color */}
-                                            <p
-                                                style={{
-                                                    ...styles.cardText,
-                                                    color:
-                                                        venta.estado === "COMPLETADO" ? "blue" : "red",
-                                                    fontWeight: "bold",
-                                                }}
-                                            >
-                                                {venta.estado === "COMPLETADO"
-                                                    ? "COMPLETADO"
-                                                    : "EN PROCESO"}
-                                            </p>
-
-                                            <p style={styles.cardText}>
-                                                Cliente: {venta.cliente || "N/A"}
-                                            </p>
-                                            <p style={styles.cardText}>
-                                                Estado: {venta.estado || "N/A"}
-                                            </p>
-                                            <p style={styles.cardText}>
-                                                IGV: {venta.igv || "0.00"}
-                                            </p>
-                                            <p style={styles.cardText}>
-                                                Valor de venta: {venta.vvta || "0.00"}
-                                            </p>
-                                            <p style={styles.cardText}>
-                                                Total: {venta.total || "0.00"}
-                                            </p>
-
-                                            <button
-                                                style={styles.button}
-                                                onClick={() => {
-                                                    openModal(venta.idmov || venta.idcab);
-                                                }}
-                                            >
-                                                Más Información
-                                            </button>
-
-                                            {/* Opcional: también podrías permitir completar desde histórico */}
-                                            {venta.estado !== "COMPLETADO" && (
-                                                <button
-                                                    style={{ ...styles.button, marginLeft: "8px" }}
-                                                    onClick={() => handleCompleteSale(venta)}
-                                                >
-                                                    Marcar como completada
-                                                </button>
-                                            )}
-                                        </div>
-                                    ))}
+                                    {historicalSales.map((venta, index) => renderSaleCard(venta, index))}
                                 </div>
                             )}
-                            {/* Botón para cargar más registros si aún hay más */}
-                            {!searchTerm && historicalSales.length < totalHistorical && (
+
+                            {!searchTerm && !historicalStatus && historicalSales.length < totalHistorical && (
                                 <div style={{ textAlign: "center", marginTop: "10px" }}>
                                     {isHistoricalLoading ? (
                                         <p>Cargando más...</p>
@@ -358,90 +376,226 @@ const DailySales = () => {
 
 const styles = {
     container: {
-        backgroundColor: "#f2f2f2",
-        padding: "20px",
+        background: "linear-gradient(135deg, #14181f 0%, #1b2129 100%)",
+        padding: "24px",
         margin: "10px auto",
-        maxWidth: "90%",
-        borderRadius: "8px",
+        maxWidth: "92%",
+        borderRadius: "18px",
+        boxShadow: "0 12px 30px rgba(15, 23, 42, 0.24)",
     },
     title: {
-        marginBottom: "15px",
+        marginBottom: "18px",
         fontFamily: "'PT Sans Narrow', sans-serif",
         fontSize: "32px",
         textAlign: "center",
+        color: "#F9FAFB",
+        letterSpacing: "0.5px",
     },
     cardList: {
         display: "grid",
-        gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-        gap: "16px",
+        gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
+        gap: "20px",
     },
     card: {
-        backgroundColor: "#fff",
-        borderRadius: "8px",
-        padding: "16px",
-        boxShadow: "0px 4px 6px rgba(0, 0, 0, 0.1)",
+        background: "linear-gradient(180deg, #111827 0%, #0F172A 100%)",
+        border: "1px solid rgba(148, 163, 184, 0.12)",
+        borderRadius: "18px",
+        padding: "18px",
+        boxShadow: "0 12px 24px rgba(2, 6, 23, 0.35)",
         display: "flex",
         flexDirection: "column",
-        justifyContent: "space-between",
+        gap: "14px",
+        minHeight: "100%",
     },
-
+    cardHeader: {
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "flex-start",
+        gap: "12px",
+    },
+    cardHeaderContent: {
+        display: "flex",
+        flexDirection: "column",
+        gap: "8px",
+        minWidth: 0,
+    },
     cardTitle: {
         fontSize: "18px",
-        fontWeight: "bold",
-        marginBottom: "8px",
+        fontWeight: 700,
+        margin: 0,
+        color: "#F9FAFB",
+        lineHeight: "1.3",
     },
-    cardText: {
-        margin: "4px 0",
+    cardDate: {
+        margin: 0,
+        fontSize: "13px",
+        color: "#94A3B8",
+    },
+    statusBadge: {
+        alignSelf: "flex-start",
+        padding: "6px 10px",
+        borderRadius: "999px",
+        fontSize: "12px",
+        fontWeight: 700,
+        letterSpacing: "0.3px",
+        whiteSpace: "nowrap",
+    },
+    cardDivider: {
+        height: "1px",
+        background: "rgba(148, 163, 184, 0.14)",
+    },
+    cardBody: {
+        display: "flex",
+        flexDirection: "column",
+        gap: "10px",
+    },
+    infoRow: {
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "flex-start",
+        gap: "12px",
+    },
+    infoLabel: {
+        fontSize: "13px",
+        color: "#94A3B8",
+        fontWeight: 600,
+    },
+    infoValue: {
+        fontSize: "14px",
+        color: "#F8FAFC",
+        fontWeight: 600,
+        textAlign: "right",
+    },
+    totalsBox: {
+        background: "rgba(255, 255, 255, 0.04)",
+        border: "1px solid rgba(148, 163, 184, 0.12)",
+        borderRadius: "14px",
+        padding: "12px",
+        display: "flex",
+        flexDirection: "column",
+        gap: "10px",
+    },
+    totalRow: {
+        display: "flex",
+        justifyContent: "space-between",
+        gap: "12px",
+    },
+    totalRowStrong: {
+        paddingTop: "10px",
+        borderTop: "1px solid rgba(148, 163, 184, 0.14)",
+    },
+    totalLabel: {
+        fontSize: "14px",
+        color: "#CBD5E1",
+        fontWeight: 600,
+    },
+    totalValue: {
+        fontSize: "16px",
+        color: "#FFFFFF",
+        fontWeight: 700,
+    },
+    actionsColumn: {
+        display: "flex",
+        flexDirection: "column",
+        gap: "10px",
+        marginTop: "auto",
     },
     button: {
         marginTop: "8px",
-        padding: "10px 20px",
-        backgroundColor: "#524b4a",
+        padding: "12px 18px",
+        background: "linear-gradient(135deg, #4B5563 0%, #374151 100%)",
         color: "white",
-        border: "none",
-        borderRadius: "5px",
+        border: "1px solid rgba(255, 255, 255, 0.08)",
+        borderRadius: "12px",
         cursor: "pointer",
-        fontWeight: "bold",
+        fontWeight: 700,
+    },
+    primaryButton: {
+        padding: "12px 16px",
+        background: "linear-gradient(135deg, #4B5563 0%, #374151 100%)",
+        color: "white",
+        border: "1px solid rgba(255, 255, 255, 0.08)",
+        borderRadius: "12px",
+        cursor: "pointer",
+        fontWeight: 700,
+        width: "100%",
+    },
+    secondaryActionButton: {
+        padding: "12px 16px",
+        background: "rgba(245, 158, 11, 0.14)",
+        color: "#FCD34D",
+        border: "1px solid rgba(251, 191, 36, 0.28)",
+        borderRadius: "12px",
+        cursor: "pointer",
+        fontWeight: 700,
+        width: "100%",
     },
     searchContainer: {
-        marginBottom: "15px",
-        textAlign: "center",
+        marginBottom: "18px",
     },
-    searchInputGroup: {
-        display: "inline-flex",
-        alignItems: "center",
+    searchFiltersRow: {
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+        gap: "14px",
+        alignItems: "end",
     },
-    searchInput: {
-        padding: "8px",
-        border: "1px solid #ccc",
-        borderRadius: "5px 0 0 5px",
-        outline: "none",
-        width: "250px",
-    },
-    searchButton: {
-        padding: "8px 12px",
-        border: "none",
-        backgroundColor: "#524b4a",
-        color: "white",
-        borderRadius: "0 5px 5px 0",
-        cursor: "pointer",
-    },
-    clearButton: {
-        marginLeft: "5px",
-        padding: "8px 12px",
-        border: "none",
-        backgroundColor: "#dc3545",
-        color: "white",
-        borderRadius: "5px",
-        cursor: "pointer",
-    },
-    buttonGroup: {
-        marginTop: "12px",
+    filterField: {
         display: "flex",
         flexDirection: "column",
         gap: "8px",
     },
-
+    filterLabel: {
+        fontSize: "14px",
+        fontWeight: 700,
+        color: "#F3F4F6",
+    },
+    statusSelect: {
+        padding: "12px 14px",
+        border: "1px solid rgba(148, 163, 184, 0.25)",
+        borderRadius: "12px",
+        minWidth: "100%",
+        outline: "none",
+        backgroundColor: "#1F2937",
+        color: "#F9FAFB",
+    },
+    searchInput: {
+        padding: "12px 14px",
+        border: "1px solid rgba(148, 163, 184, 0.25)",
+        borderRadius: "12px",
+        outline: "none",
+        width: "100%",
+        backgroundColor: "#1F2937",
+        color: "#F9FAFB",
+        boxSizing: "border-box",
+    },
+    filterActions: {
+        display: "flex",
+        flexDirection: "column",
+        gap: "10px",
+        justifyContent: "flex-end",
+    },
+    searchActionButton: {
+        padding: "12px 16px",
+        border: "none",
+        background: "linear-gradient(135deg, #4B5563 0%, #374151 100%)",
+        color: "white",
+        borderRadius: "12px",
+        cursor: "pointer",
+        fontWeight: "bold",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: "8px",
+    },
+    clearButton: {
+        padding: "12px 16px",
+        border: "1px solid rgba(248, 113, 113, 0.32)",
+        background: "rgba(239, 68, 68, 0.12)",
+        color: "#FCA5A5",
+        borderRadius: "12px",
+        cursor: "pointer",
+        fontWeight: 700,
+    },
 };
 
 export default DailySales;
