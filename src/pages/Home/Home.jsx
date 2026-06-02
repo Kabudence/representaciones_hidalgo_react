@@ -28,18 +28,70 @@ const Home = () => {
         };
     }, []);
 
+
+    const responsiveCss = `
+    @media (max-width: 860px) {
+        .home-container {
+            flex-direction: column !important;
+            justify-content: center !important;
+            gap: 28px !important;
+            padding: 28px 18px !important;
+            height: auto !important;
+            min-height: 100dvh !important;
+            box-sizing: border-box !important;
+            text-align: center !important;
+        }
+
+        .home-text-container {
+            max-width: 100% !important;
+            width: 100% !important;
+        }
+
+        .home-auth-container {
+            max-width: 440px !important;
+            width: 100% !important;
+            justify-content: center !important;
+        }
+
+        .home-heading {
+            font-size: 2.7rem !important;
+            line-height: 1.05 !important;
+        }
+    }
+
+    @media (max-width: 520px) {
+        .home-container {
+            padding: 22px 14px !important;
+            gap: 22px !important;
+            background-position: center !important;
+        }
+
+        .home-sub-heading {
+            font-size: 1rem !important;
+            margin-bottom: 12px !important;
+        }
+
+        .home-heading {
+            font-size: 2.05rem !important;
+        }
+    }
+`;
+
     return (
-        <div style={styles.container}>
-            <div style={styles.textContainer}>
-                <h2 style={styles.subHeading}>HIDALGO BUSINESS</h2>
-                <h1 style={styles.heading}>Una solución eficaz para su empresa</h1>
-            </div>
-            {!isAuthenticated && (
-                <div style={styles.authContainer}>
-                    <AuthBox />
+        <>
+            <style>{responsiveCss}</style>
+            <div className="home-container" style={styles.container}>
+                <div className="home-text-container" style={styles.textContainer}>
+                    <h2 className="home-sub-heading" style={styles.subHeading}>HIDALGO BUSINESS</h2>
+                    <h1 className="home-heading" style={styles.heading}>Una solución eficaz para su empresa</h1>
                 </div>
-            )}
-        </div>
+                {!isAuthenticated && (
+                    <div className="home-auth-container" style={styles.authContainer}>
+                        <AuthBox />
+                    </div>
+                )}
+            </div>
+        </>
     );
 };
 

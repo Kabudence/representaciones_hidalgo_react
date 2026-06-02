@@ -55,8 +55,35 @@ const AuthBox = () => {
         }
     };
 
+    const responsiveCss = `
+    @media (max-width: 520px) {
+        .auth-box {
+            padding: 22px 18px !important;
+            border-radius: 14px !important;
+            max-width: 100% !important;
+        }
+
+        .auth-box h2 {
+            font-size: 24px;
+            margin: 0 0 18px;
+        }
+
+        .auth-input {
+            font-size: 16px !important;
+            padding: 13px 12px !important;
+        }
+
+        .auth-button {
+            font-size: 16px !important;
+            padding: 13px 12px !important;
+        }
+    }
+`;
+
     return (
-        <div style={styles.authBox}>
+        <>
+            <style>{responsiveCss}</style>
+            <div className="auth-box" style={styles.authBox}>
             <h2>Inicie Sesión</h2>
             <form onSubmit={handleSubmit}>
                 <input
@@ -65,6 +92,7 @@ const AuthBox = () => {
                     placeholder="Nombre de usuario"
                     value={formData.username}
                     onChange={handleInputChange}
+                    className="auth-input"
                     style={styles.input}
                     required
                 />
@@ -74,14 +102,16 @@ const AuthBox = () => {
                     placeholder="Contraseña"
                     value={formData.password}
                     onChange={handleInputChange}
+                    className="auth-input"
                     style={styles.input}
                     required
                 />
-                <button type="submit" style={styles.button}>
+                <button type="submit" className="auth-button" style={styles.button}>
                     Iniciar Sesión
                 </button>
             </form>
-        </div>
+            </div>
+        </>
     );
 };
 

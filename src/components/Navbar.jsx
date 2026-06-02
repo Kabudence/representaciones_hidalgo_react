@@ -1,10 +1,25 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaUser } from "react-icons/fa"; // Ícono de usuario
 
 const Navbar = () => {
     const [dropdownOpen, setDropdownOpen] = useState(false);
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [isMobile, setIsMobile] = useState(false);
     const navigate = useNavigate();
+
+    useEffect(() => {
+        const handleResize = () => {
+            setIsMobile(window.innerWidth <= 820);
+        };
+
+        handleResize();
+        window.addEventListener("resize", handleResize);
+
+        return () => {
+            window.removeEventListener("resize", handleResize);
+        };
+    }, []);
 
     const handleLogout = () => {
         sessionStorage.removeItem("authData"); // Eliminar authData del sessionStorage
@@ -13,32 +28,71 @@ const Navbar = () => {
 
     const toggleDropdown = () => {
         setDropdownOpen(!dropdownOpen);
+        setMobileMenuOpen(false);
     };
+
+    const toggleMobileMenu = () => {
+        setMobileMenuOpen(!mobileMenuOpen);
+        setDropdownOpen(false);
+    };
+
+    const closeMobileMenu = () => {
+        setMobileMenuOpen(false);
+    };
+
+    const desktopLinks = [
+        { href: "/", label: "Home" },
+        { href: "/clientes", label: "Clientes" },
+        { href: "/proveedores", label: "Proveedores" },
+        { href: "/ventas", label: "Ventas" },
+        { href: "/compras", label: "Compras" },
+        { href: "/productos", label: "Productos" },
+        { href: "/empleados", label: "Empleados" },
+        { href: "/lineas", label: "Lineas" },
+        { href: "/clases", label: "Clases" },
+        { href: "/daily-sales", label: "Ventas diarias" },
+        { href: "/analiticas", label: "Analíticas" },
+        { href: "/nota-venta", label: "Nota de venta" },
+        { href: "/boletas", label: "Boletas" },
+    ];
+
+    const mobileLinks = [
+        { href: "/analiticas", label: "Analíticas" },
+        { href: "/daily-sales", label: "Ventas diarias" },
+        { href: "/nota-venta", label: "Nota de venta" },
+        { href: "/productos", label: "Productos" },
+        { href: "/", label: "Home" },
+    ];
 
     const styles = {
         navbar: {
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
-            padding: "10px 20px",
+            padding: isMobile ? "10px 14px" : "10px 20px",
             backgroundColor: "#fff",
             color: "black",
-            paddingRight: "50px",
+            paddingRight: isMobile ? "14px" : "50px",
             position: "relative",
+            gap: "12px",
+            boxSizing: "border-box",
         },
         logo: {
             fontFamily: "'Bebas Neue', sans-serif",
-            fontSize: "24px",
+            fontSize: isMobile ? "21px" : "24px",
             fontWeight: "bold",
             letterSpacing: "2px",
             color: "black",
+            whiteSpace: "nowrap",
         },
         links: {
             listStyle: "none",
-            display: "flex",
+            display: isMobile ? "none" : "flex",
             gap: "20px",
             margin: 0,
             padding: 0,
+            flexWrap: "wrap",
+            justifyContent: "center",
         },
         linkItem: {
             textDecoration: "none",
@@ -47,12 +101,40 @@ const Navbar = () => {
             fontSize: "18px",
             transition: "color 0.3s ease",
         },
+        mobileActions: {
+            display: isMobile ? "flex" : "none",
+            alignItems: "center",
+            gap: "8px",
+            marginLeft: "auto",
+        },
+        analyticsShortcut: {
+            textDecoration: "none",
+            color: "white",
+            background: "#7f1d1d",
+            borderRadius: "999px",
+            padding: "8px 11px",
+            fontFamily: "'Bebas Neue', sans-serif",
+            fontSize: "15px",
+            letterSpacing: "0.6px",
+            whiteSpace: "nowrap",
+        },
+        menuButton: {
+            border: "1px solid #d6b98d",
+            background: "#fff7e8",
+            color: "#331b16",
+            borderRadius: "999px",
+            padding: "8px 10px",
+            fontWeight: "900",
+            cursor: "pointer",
+            fontSize: "13px",
+        },
         userIcon: {
             fontSize: "20px",
             cursor: "pointer",
             color: "black",
             transition: "color 0.3s ease",
             position: "relative",
+            flex: "0 0 auto",
         },
         dropdown: {
             position: "absolute",
@@ -63,7 +145,7 @@ const Navbar = () => {
             borderRadius: "5px",
             width: "150px",
             padding: "10px",
-            zIndex: 10,
+            zIndex: 20,
             textAlign: "center",
             opacity: dropdownOpen ? 1 : 0,
             transform: dropdownOpen ? "translateY(0)" : "translateY(-10px)",
@@ -78,9 +160,36 @@ const Navbar = () => {
             cursor: "pointer",
             transition: "background 0.3s ease",
         },
-        dropdownItemHover: {
-            backgroundColor: "#f0a500",
-            color: "white",
+        mobileMenu: {
+            display: isMobile && mobileMenuOpen ? "grid" : "none",
+            gridTemplateColumns: "1fr",
+            gap: "8px",
+            position: "absolute",
+            top: "100%",
+            left: "10px",
+            right: "10px",
+            background: "#fffaf0",
+            border: "1px solid #ead9bd",
+            borderRadius: "16px",
+            padding: "12px",
+            zIndex: 15,
+            boxShadow: "0 14px 28px rgba(73, 45, 18, 0.18)",
+        },
+        mobileMenuLink: {
+            textDecoration: "none",
+            color: "#331b16",
+            background: "#fff7e8",
+            border: "1px solid #ead9bd",
+            borderRadius: "12px",
+            padding: "12px",
+            fontFamily: "'Bebas Neue', sans-serif",
+            fontSize: "17px",
+            letterSpacing: "0.6px",
+        },
+        separator: {
+            height: "1px",
+            background: "#e7e7e7",
+            width: "100%",
         },
     };
 
@@ -88,20 +197,19 @@ const Navbar = () => {
         <>
             <nav style={styles.navbar}>
                 <div style={styles.logo}>HIDALGO 2.0</div>
+
                 <ul style={styles.links}>
-                    <li><a href="/" style={styles.linkItem}>Home</a></li>
-                    <li><a href="/clientes" style={styles.linkItem}>Clientes</a></li>
-                    <li><a href="/proveedores" style={styles.linkItem}>Proveedores</a></li>
-                    <li><a href="/ventas" style={styles.linkItem}>Ventas</a></li>
-                    <li><a href="/compras" style={styles.linkItem}>Compras</a></li>
-                    <li><a href="/productos" style={styles.linkItem}>Productos</a></li>
-                    <li><a href="/empleados" style={styles.linkItem}>Empleados</a></li>
-                    <li><a href="/lineas" style={styles.linkItem}>Lineas</a></li>
-                    <li><a href="/clases" style={styles.linkItem}>Clases</a></li>
-                    <li><a href="/daily-sales" style={styles.linkItem}>Ventas diarias</a></li>
-                    <li><a href="/nota-venta" style={styles.linkItem}>Nota de venta</a></li>
-                    <li><a href="/boletas" style={styles.linkItem}>Boletas</a></li>
+                    {desktopLinks.map((link) => (
+                        <li key={link.href}><a href={link.href} style={styles.linkItem}>{link.label}</a></li>
+                    ))}
                 </ul>
+
+                <div style={styles.mobileActions}>
+                    <a href="/analiticas" style={styles.analyticsShortcut}>Analíticas</a>
+                    <button type="button" style={styles.menuButton} onClick={toggleMobileMenu}>
+                        {mobileMenuOpen ? "Cerrar" : "Menú"}
+                    </button>
+                </div>
 
                 {/* Ícono de usuario con Dropdown */}
                 <div style={styles.userIcon} onClick={toggleDropdown}>
@@ -117,8 +225,19 @@ const Navbar = () => {
                         </div>
                     </div>
                 </div>
+
+                <div style={styles.mobileMenu}>
+                    {mobileLinks.map((link) => (
+                        <a key={link.href} href={link.href} style={styles.mobileMenuLink} onClick={closeMobileMenu}>
+                            {link.label}
+                        </a>
+                    ))}
+                    <button type="button" style={{ ...styles.mobileMenuLink, cursor: "pointer", textAlign: "left" }} onClick={handleLogout}>
+                        Cerrar sesión
+                    </button>
+                </div>
             </nav>
-            <div className="navbar-separator"></div> {/* Línea de separación */}
+            <div style={styles.separator}></div> {/* Línea de separación */}
         </>
     );
 };

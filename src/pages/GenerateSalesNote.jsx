@@ -853,10 +853,12 @@ const styles = {
 
     paymentRow: {
         display: "grid",
-        gridTemplateColumns: "1.2fr 1fr 1fr auto",
+        gridTemplateColumns: "minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr) max-content",
         gap: "10px",
         alignItems: "center",
         marginBottom: "10px",
+        width: "100%",
+        boxSizing: "border-box",
     },
     paymentSelect: {
         padding: "8px",
@@ -864,6 +866,9 @@ const styles = {
         borderRadius: "4px",
         backgroundColor: "#ffffff",
         color: "#212529",
+        width: "100%",
+        minWidth: 0,
+        boxSizing: "border-box",
     },
     paymentInput: {
         padding: "8px",
@@ -871,6 +876,9 @@ const styles = {
         borderRadius: "4px",
         backgroundColor: "#ffffff",
         color: "#212529",
+        width: "100%",
+        minWidth: 0,
+        boxSizing: "border-box",
     },
     addPaymentButton: {
         margin: "10px auto",
@@ -887,10 +895,13 @@ const styles = {
         backgroundColor: "#dc3545",
         color: "white",
         border: "none",
-        padding: "8px 12px",
+        padding: "8px 10px",
         cursor: "pointer",
         borderRadius: "5px",
         fontWeight: "bold",
+        whiteSpace: "nowrap",
+        maxWidth: "100%",
+        boxSizing: "border-box",
     },
     paymentSummary: {
         marginTop: "15px",

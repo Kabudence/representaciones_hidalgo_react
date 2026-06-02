@@ -17,6 +17,7 @@ import PropTypes from "prop-types";
 import NoAutorizado from "./pages/NoAutorizado.jsx";
 import DailySales from "./pages/DailySales.jsx";
 import GenerateSalesNote from "./pages/GenerateSalesNote.jsx";
+import Analytics from "./pages/Analytics.jsx";
 
 const ProtectedRoute = ({ children }) => {
     const { authData, isAuthDataLoaded } = useContext(AuthContext);
@@ -57,6 +58,14 @@ const App = () => {
                                 element={
                                     <ProtectedRoute>
                                         <DailySales />
+                                    </ProtectedRoute>
+                                }
+                            />
+                            <Route
+                                path="/analiticas"
+                                element={
+                                    <ProtectedRoute>
+                                        <Analytics />
                                     </ProtectedRoute>
                                 }
                             />
