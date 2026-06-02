@@ -1,7 +1,7 @@
 // src/pages/DailySales.jsx
 import { useState, useEffect } from "react";
 import dailySalesService from "../services/dailySalesService";
-import SaleDetailsModal from "../components/SaleDetailsModal.jsx";
+import api from "../services/api";
 import { FaSearch } from "react-icons/fa";
 
 const DailySales = () => {
@@ -18,9 +18,14 @@ const DailySales = () => {
     const [activeFilters, setActiveFilters] = useState({ numDocum: "", status: "" });
     const [isLoadingMoreMain, setIsLoadingMoreMain] = useState(false);
 
-    // Estado para el modal de detalles de venta
-    const [selectedIdCab, setSelectedIdCab] = useState(null);
+    // Estado para el modal de informacion de venta
+    const [selectedSale, setSelectedSale] = useState(null);
     const [showModal, setShowModal] = useState(false);
+    const [saleDetailItems, setSaleDetailItems] = useState([]);
+    const [saleDetailPhotos, setSaleDetailPhotos] = useState([]);
+    const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
+    const [isDetailLoading, setIsDetailLoading] = useState(false);
+    const [detailError, setDetailError] = useState("");
 
     // Estado para el historial de ventas
     const [historicalSales, setHistoricalSales] = useState([]);
@@ -105,18 +110,255 @@ const DailySales = () => {
         return (estado || "").toUpperCase() === "EN PROCESO";
     };
 
-    const openModal = (id) => {
-        if (!id) {
-            console.warn("No se ha recibido un id válido para el modal.");
+    const buildPhotoSrc = (photoCode) => {
+        if (!photoCode) return "";
+        return String(photoCode).startsWith("data:image")
+            ? photoCode
+            : `data:image/jpeg;base64,${photoCode}`;
+    };
+
+    const getSaleIdCab = (venta) => venta?.idmov || venta?.idcab;
+
+    const fetchSaleDetailsByNumDoc = async (numDocum) => {
+        const response = await api.get(`/regmovdet/by-num-doc/${encodeURIComponent(numDocum)}`);
+        return response.data;
+    };
+
+    const getPhotosByRegmovdet = (iddet) => {
+        return saleDetailPhotos.filter((photo) => Number(photo.regmovdet_id) === Number(iddet));
+    };
+
+    const getItemsSummary = () => {
+        const productCount = saleDetailItems.length;
+        const unitsCount = saleDetailItems.reduce(
+            (sum, item) => sum + (Number(item.cantidad) || 0),
+            0
+        );
+
+        return { productCount, unitsCount };
+    };
+
+    const openModal = async (venta) => {
+        const numDocum = venta?.num_docum;
+        const idcab = getSaleIdCab(venta);
+
+        if (!numDocum) {
+            console.warn("No se ha recibido un numero de documento valido para el modal.");
             return;
         }
-        setSelectedIdCab(id);
+
+        setSelectedSale(venta);
         setShowModal(true);
+        setSaleDetailItems([]);
+        setSaleDetailPhotos([]);
+        setSelectedPhotoIndex(0);
+        setDetailError("");
+        setIsDetailLoading(true);
+
+        try {
+            const [itemsResult, photosResult] = await Promise.allSettled([
+                fetchSaleDetailsByNumDoc(numDocum),
+                idcab ? dailySalesService.getPhotosByIdCab(idcab, 0, 100) : Promise.resolve([]),
+            ]);
+
+            if (itemsResult.status === "fulfilled") {
+                setSaleDetailItems(Array.isArray(itemsResult.value) ? itemsResult.value : []);
+            } else {
+                console.error("Error al obtener productos de la venta:", itemsResult.reason);
+                setDetailError("No se pudo cargar el listado de productos vendidos.");
+            }
+
+            if (photosResult.status === "fulfilled") {
+                setSaleDetailPhotos(Array.isArray(photosResult.value) ? photosResult.value : []);
+            } else {
+                console.error("Error al obtener fotos de la venta:", photosResult.reason);
+            }
+        } finally {
+            setIsDetailLoading(false);
+        }
     };
 
     const closeModal = () => {
         setShowModal(false);
-        setSelectedIdCab(null);
+        setSelectedSale(null);
+        setSaleDetailItems([]);
+        setSaleDetailPhotos([]);
+        setSelectedPhotoIndex(0);
+        setDetailError("");
+    };
+
+    const renderSaleDetailsModal = () => {
+        if (!showModal || !selectedSale) return null;
+
+        const statusUI = getStatusUI(selectedSale.estado);
+        const { productCount, unitsCount } = getItemsSummary();
+        const selectedPhoto = saleDetailPhotos[selectedPhotoIndex];
+
+        return (
+            <div style={styles.detailOverlay} onClick={closeModal}>
+                <div style={styles.detailModal} onClick={(event) => event.stopPropagation()}>
+                    <div style={styles.detailHeader}>
+                        <div>
+                            <span style={styles.detailEyebrow}>Detalle de venta</span>
+                            <h2 style={styles.detailTitle}>
+                                {selectedSale.num_docum || "Sin numero de documento"}
+                            </h2>
+                            <p style={styles.detailSubtitle}>
+                                Fecha: {formatSaleDate(selectedSale.fecha)}
+                            </p>
+                        </div>
+
+                        <div style={styles.detailHeaderActions}>
+                            <span style={{ ...styles.statusBadge, ...statusUI }}>
+                                {selectedSale.estado || "N/A"}
+                            </span>
+                            <button style={styles.detailCloseButton} onClick={closeModal}>
+                                X
+                            </button>
+                        </div>
+                    </div>
+
+                    {isDetailLoading ? (
+                        <div style={styles.detailLoadingBox}>Cargando informacion de venta...</div>
+                    ) : (
+                        <>
+                            {detailError && <p style={styles.detailError}>{detailError}</p>}
+
+                            <div style={styles.detailSummaryGrid}>
+                                <div style={styles.detailSummaryCard}>
+                                    <span style={styles.detailSummaryLabel}>Productos</span>
+                                    <strong style={styles.detailSummaryValue}>{productCount}</strong>
+                                </div>
+                                <div style={styles.detailSummaryCard}>
+                                    <span style={styles.detailSummaryLabel}>Unidades</span>
+                                    <strong style={styles.detailSummaryValue}>{formatAmount(unitsCount)}</strong>
+                                </div>
+                                <div style={styles.detailSummaryCard}>
+                                    <span style={styles.detailSummaryLabel}>Valor venta</span>
+                                    <strong style={styles.detailSummaryValue}>S/ {formatAmount(selectedSale.vvta)}</strong>
+                                </div>
+                                <div style={styles.detailSummaryCardStrong}>
+                                    <span style={styles.detailSummaryLabel}>Total</span>
+                                    <strong style={styles.detailSummaryValue}>S/ {formatAmount(selectedSale.total)}</strong>
+                                </div>
+                            </div>
+
+                            <section style={styles.detailSection}>
+                                <div style={styles.sectionTitleRow}>
+                                    <h3 style={styles.sectionTitle}>Productos vendidos</h3>
+                                    <span style={styles.sectionBadge}>{productCount} item(s)</span>
+                                </div>
+
+                                {saleDetailItems.length === 0 ? (
+                                    <p style={styles.emptyMessage}>No se encontraron productos para esta venta.</p>
+                                ) : (
+                                    <div style={styles.productList}>
+                                        {saleDetailItems.map((item, index) => {
+                                            const itemPhotos = getPhotosByRegmovdet(item.iddet);
+
+                                            return (
+                                                <div key={item.iddet || index} style={styles.productItem}>
+                                                    <div style={styles.productIndex}>{index + 1}</div>
+                                                    <div style={styles.productInfo}>
+                                                        <strong style={styles.productName}>
+                                                            {item.nomproducto || "Producto sin nombre"}
+                                                        </strong>
+                                                        <span style={styles.productCode}>
+                                                            Codigo: {item.producto || "N/A"} · Detalle: {item.iddet || "N/A"}
+                                                        </span>
+                                                    </div>
+                                                    <div style={styles.productNumbers}>
+                                                        <span>Cant. {formatAmount(item.cantidad)}</span>
+                                                        <span>Precio S/ {formatAmount(item.precio)}</span>
+                                                        <strong>Total S/ {formatAmount(item.total)}</strong>
+                                                    </div>
+
+                                                    {itemPhotos.length > 0 && (
+                                                        <div style={styles.productPhotoStrip}>
+                                                            <span style={styles.productPhotoBadge}>
+                                                                {itemPhotos.length} foto(s) vinculada(s)
+                                                            </span>
+                                                            <div style={styles.productInlinePhotos}>
+                                                                {itemPhotos.slice(0, 4).map((photo, photoIndex) => (
+                                                                    <button
+                                                                        key={photo.id || `${item.iddet}-${photoIndex}`}
+                                                                        type="button"
+                                                                        style={styles.productPhotoButton}
+                                                                        onClick={() => {
+                                                                            const globalIndex = saleDetailPhotos.findIndex(
+                                                                                (registeredPhoto) => registeredPhoto.id === photo.id
+                                                                            );
+                                                                            setSelectedPhotoIndex(globalIndex >= 0 ? globalIndex : 0);
+                                                                        }}
+                                                                    >
+                                                                        <img
+                                                                            src={buildPhotoSrc(photo.foto_codigo)}
+                                                                            alt={photo.nombre_producto || item.nomproducto || "Foto"}
+                                                                            style={styles.productInlinePhoto}
+                                                                        />
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </section>
+
+                            {saleDetailPhotos.length > 0 && (
+                                <section style={styles.detailSection}>
+                                    <div style={styles.sectionTitleRow}>
+                                        <h3 style={styles.sectionTitle}>Fotos registradas</h3>
+                                        <span style={styles.sectionBadge}>{saleDetailPhotos.length} foto(s)</span>
+                                    </div>
+
+                                    <div style={styles.photoWorkspace}>
+                                        <div style={styles.photoPreviewCard}>
+                                            <img
+                                                src={buildPhotoSrc(selectedPhoto?.foto_codigo)}
+                                                alt={selectedPhoto?.nombre_producto || "Foto de producto"}
+                                                style={styles.photoPreview}
+                                            />
+                                            <div style={styles.photoDescription}>
+                                                <strong>{selectedPhoto?.nombre_producto || "Producto sin nombre"}</strong>
+                                                <span>Precio vendido: S/ {formatAmount(selectedPhoto?.precio_vendido)}</span>
+                                                <span>Cantidad: {formatAmount(selectedPhoto?.cantidad)}</span>
+                                                <span>Fecha: {selectedPhoto?.fecha || "Sin fecha"}</span>
+                                            </div>
+                                        </div>
+
+                                        <div style={styles.photoThumbList}>
+                                            {saleDetailPhotos.map((photo, index) => (
+                                                <button
+                                                    key={photo.id || index}
+                                                    type="button"
+                                                    onClick={() => setSelectedPhotoIndex(index)}
+                                                    style={index === selectedPhotoIndex
+                                                        ? styles.photoThumbButtonActive
+                                                        : styles.photoThumbButton}
+                                                >
+                                                    <img
+                                                        src={buildPhotoSrc(photo.foto_codigo)}
+                                                        alt={photo.nombre_producto || "Foto"}
+                                                        style={styles.photoThumb}
+                                                    />
+                                                    <span style={styles.photoThumbText}>
+                                                        {photo.nombre_producto || `Foto ${index + 1}`}
+                                                    </span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </section>
+                            )}
+                        </>
+                    )}
+                </div>
+            </div>
+        );
     };
 
     const hasFilters = (filters) => Boolean(filters.numDocum || filters.status);
@@ -347,14 +589,18 @@ const DailySales = () => {
                 <div style={styles.totalsBox}>
                     <div style={styles.totalRow}>
                         <span style={styles.totalLabel}>Valor de venta</span>
-                        <span style={styles.totalValue}>{formatAmount(venta.vvta)}</span>
+                        <span style={styles.totalValue}>S/ {formatAmount(venta.vvta)}</span>
+                    </div>
+                    <div style={{ ...styles.totalRow, ...styles.totalRowStrong }}>
+                        <span style={styles.totalLabel}>Total</span>
+                        <span style={styles.totalValue}>S/ {formatAmount(venta.total)}</span>
                     </div>
                 </div>
 
                 <div style={styles.actionsColumn}>
                     <button
                         style={styles.primaryButton}
-                        onClick={() => openModal(venta.idmov || venta.idcab)}
+                        onClick={() => openModal(venta)}
                     >
                         Más Información
                     </button>
@@ -444,9 +690,7 @@ const DailySales = () => {
                 </div>
             )}
 
-            {showModal && selectedIdCab && (
-                <SaleDetailsModal idcab={selectedIdCab} onClose={closeModal} />
-            )}
+            {renderSaleDetailsModal()}
         </div>
     );
 };
@@ -684,6 +928,323 @@ const styles = {
         borderRadius: "12px",
         cursor: "pointer",
         fontWeight: 700,
+    },
+    detailOverlay: {
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: "rgba(3, 7, 18, 0.78)",
+        zIndex: 9999,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "22px",
+        boxSizing: "border-box",
+    },
+    detailModal: {
+        width: "min(1080px, 96vw)",
+        maxHeight: "92vh",
+        overflowY: "auto",
+        background: "linear-gradient(180deg, #111827 0%, #0F172A 100%)",
+        border: "1px solid rgba(245, 158, 11, 0.22)",
+        borderRadius: "22px",
+        padding: "22px",
+        boxShadow: "0 28px 80px rgba(0, 0, 0, 0.55)",
+        color: "#F9FAFB",
+    },
+    detailHeader: {
+        display: "flex",
+        justifyContent: "space-between",
+        gap: "18px",
+        alignItems: "flex-start",
+        borderBottom: "1px solid rgba(148, 163, 184, 0.16)",
+        paddingBottom: "16px",
+        marginBottom: "18px",
+    },
+    detailHeaderActions: {
+        display: "flex",
+        alignItems: "center",
+        gap: "12px",
+    },
+    detailEyebrow: {
+        color: "#FBBF24",
+        fontSize: "12px",
+        fontWeight: 800,
+        textTransform: "uppercase",
+        letterSpacing: "0.08em",
+    },
+    detailTitle: {
+        margin: "6px 0 4px",
+        fontSize: "28px",
+        fontFamily: "'PT Sans Narrow', sans-serif",
+        letterSpacing: "0.4px",
+    },
+    detailSubtitle: {
+        margin: 0,
+        color: "#94A3B8",
+        fontSize: "14px",
+    },
+    detailCloseButton: {
+        width: "38px",
+        height: "38px",
+        borderRadius: "12px",
+        border: "1px solid rgba(248, 113, 113, 0.30)",
+        background: "rgba(239, 68, 68, 0.14)",
+        color: "#FCA5A5",
+        cursor: "pointer",
+        fontSize: "18px",
+        fontWeight: 800,
+    },
+    detailLoadingBox: {
+        padding: "32px",
+        textAlign: "center",
+        background: "rgba(255, 255, 255, 0.04)",
+        borderRadius: "16px",
+        color: "#CBD5E1",
+    },
+    detailError: {
+        padding: "12px 14px",
+        background: "rgba(239, 68, 68, 0.12)",
+        border: "1px solid rgba(248, 113, 113, 0.28)",
+        color: "#FCA5A5",
+        borderRadius: "12px",
+    },
+    detailSummaryGrid: {
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+        gap: "12px",
+        marginBottom: "18px",
+    },
+    detailSummaryCard: {
+        padding: "14px",
+        borderRadius: "16px",
+        background: "rgba(255, 255, 255, 0.045)",
+        border: "1px solid rgba(148, 163, 184, 0.14)",
+        display: "flex",
+        flexDirection: "column",
+        gap: "6px",
+    },
+    detailSummaryCardStrong: {
+        padding: "14px",
+        borderRadius: "16px",
+        background: "rgba(245, 158, 11, 0.12)",
+        border: "1px solid rgba(245, 158, 11, 0.28)",
+        display: "flex",
+        flexDirection: "column",
+        gap: "6px",
+    },
+    detailSummaryLabel: {
+        color: "#94A3B8",
+        fontSize: "12px",
+        fontWeight: 800,
+        textTransform: "uppercase",
+        letterSpacing: "0.05em",
+    },
+    detailSummaryValue: {
+        color: "#F9FAFB",
+        fontSize: "22px",
+    },
+    detailSection: {
+        marginTop: "18px",
+        padding: "16px",
+        borderRadius: "18px",
+        background: "rgba(255, 255, 255, 0.035)",
+        border: "1px solid rgba(148, 163, 184, 0.12)",
+    },
+    sectionTitleRow: {
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        gap: "12px",
+        marginBottom: "12px",
+    },
+    sectionTitle: {
+        margin: 0,
+        fontSize: "19px",
+        color: "#F8FAFC",
+    },
+    sectionBadge: {
+        padding: "6px 10px",
+        borderRadius: "999px",
+        background: "rgba(245, 158, 11, 0.14)",
+        border: "1px solid rgba(245, 158, 11, 0.25)",
+        color: "#FCD34D",
+        fontSize: "12px",
+        fontWeight: 800,
+        whiteSpace: "nowrap",
+    },
+    emptyMessage: {
+        margin: 0,
+        color: "#CBD5E1",
+    },
+    productList: {
+        display: "flex",
+        flexDirection: "column",
+        gap: "10px",
+    },
+    productItem: {
+        display: "grid",
+        gridTemplateColumns: "44px minmax(0, 1fr)",
+        gap: "12px",
+        alignItems: "center",
+        padding: "12px",
+        borderRadius: "14px",
+        background: "rgba(15, 23, 42, 0.78)",
+        border: "1px solid rgba(148, 163, 184, 0.12)",
+    },
+    productIndex: {
+        width: "34px",
+        height: "34px",
+        borderRadius: "10px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "rgba(245, 158, 11, 0.16)",
+        color: "#FCD34D",
+        fontWeight: 900,
+    },
+    productInfo: {
+        display: "flex",
+        flexDirection: "column",
+        gap: "4px",
+        minWidth: 0,
+    },
+    productName: {
+        color: "#F8FAFC",
+        lineHeight: 1.25,
+    },
+    productCode: {
+        color: "#94A3B8",
+        fontSize: "12px",
+    },
+    productNumbers: {
+        gridColumn: "1 / -1",
+        display: "flex",
+        flexWrap: "wrap",
+        justifyContent: "flex-end",
+        gap: "8px 14px",
+        textAlign: "right",
+        color: "#CBD5E1",
+        fontSize: "13px",
+        fontWeight: 700,
+    },
+    productPhotoStrip: {
+        gridColumn: "1 / -1",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: "10px",
+        flexWrap: "wrap",
+        paddingTop: "10px",
+        borderTop: "1px solid rgba(148, 163, 184, 0.12)",
+    },
+    productPhotoBadge: {
+        padding: "5px 9px",
+        borderRadius: "999px",
+        background: "rgba(245, 158, 11, 0.12)",
+        border: "1px solid rgba(245, 158, 11, 0.24)",
+        color: "#FCD34D",
+        fontSize: "12px",
+        fontWeight: 800,
+    },
+    productInlinePhotos: {
+        display: "flex",
+        gap: "8px",
+        flexWrap: "wrap",
+    },
+    productPhotoButton: {
+        padding: 0,
+        border: "1px solid rgba(148, 163, 184, 0.18)",
+        borderRadius: "10px",
+        background: "#020617",
+        cursor: "pointer",
+        overflow: "hidden",
+    },
+    productInlinePhoto: {
+        width: "48px",
+        height: "48px",
+        objectFit: "cover",
+        display: "block",
+    },
+    photoWorkspace: {
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+        gap: "16px",
+        alignItems: "start",
+    },
+    photoPreviewCard: {
+        background: "rgba(15, 23, 42, 0.78)",
+        border: "1px solid rgba(148, 163, 184, 0.12)",
+        borderRadius: "16px",
+        padding: "14px",
+    },
+    photoPreview: {
+        width: "100%",
+        maxHeight: "420px",
+        objectFit: "contain",
+        borderRadius: "14px",
+        background: "#020617",
+        display: "block",
+    },
+    photoDescription: {
+        marginTop: "12px",
+        display: "grid",
+        gap: "6px",
+        color: "#CBD5E1",
+        fontSize: "14px",
+    },
+    photoThumbList: {
+        display: "flex",
+        flexDirection: "column",
+        gap: "10px",
+        maxHeight: "520px",
+        overflowY: "auto",
+        paddingRight: "4px",
+    },
+    photoThumbButton: {
+        display: "grid",
+        gridTemplateColumns: "58px 1fr",
+        gap: "10px",
+        alignItems: "center",
+        padding: "8px",
+        borderRadius: "14px",
+        border: "1px solid rgba(148, 163, 184, 0.12)",
+        background: "rgba(15, 23, 42, 0.78)",
+        color: "#CBD5E1",
+        cursor: "pointer",
+        textAlign: "left",
+    },
+    photoThumbButtonActive: {
+        display: "grid",
+        gridTemplateColumns: "58px 1fr",
+        gap: "10px",
+        alignItems: "center",
+        padding: "8px",
+        borderRadius: "14px",
+        border: "1px solid rgba(245, 158, 11, 0.42)",
+        background: "rgba(245, 158, 11, 0.14)",
+        color: "#FCD34D",
+        cursor: "pointer",
+        textAlign: "left",
+    },
+    photoThumb: {
+        width: "58px",
+        height: "58px",
+        objectFit: "cover",
+        borderRadius: "10px",
+        background: "#020617",
+    },
+    photoThumbText: {
+        fontSize: "13px",
+        fontWeight: 800,
+        lineHeight: 1.25,
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        display: "-webkit-box",
+        WebkitLineClamp: 2,
+        WebkitBoxOrient: "vertical",
     },
 };
 
