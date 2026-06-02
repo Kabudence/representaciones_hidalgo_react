@@ -12,6 +12,11 @@ const DailySales = () => {
     const [searchTerm, setSearchTerm] = useState("");
     const [historicalStatus, setHistoricalStatus] = useState("");
     const [isSearching, setIsSearching] = useState(false);
+    const [mainPage, setMainPage] = useState(1);
+    const [totalSales, setTotalSales] = useState(0);
+    const [isFilteredView, setIsFilteredView] = useState(false);
+    const [activeFilters, setActiveFilters] = useState({ numDocum: "", status: "" });
+    const [isLoadingMoreMain, setIsLoadingMoreMain] = useState(false);
 
     // Estado para el modal de detalles de venta
     const [selectedIdCab, setSelectedIdCab] = useState(null);
@@ -37,6 +42,8 @@ const DailySales = () => {
         try {
             const data = await dailySalesService.getCompletedToday();
             setSales(data);
+            setTotalSales(data.length);
+            setMainPage(1);
         } catch (error) {
             console.error("Error al obtener ventas diarias:", error);
         } finally {
@@ -48,15 +55,15 @@ const DailySales = () => {
         switch ((estado || "").toUpperCase()) {
             case "ANULADO":
                 return {
-                    color: "#D1D5DB",
-                    backgroundColor: "rgba(107, 114, 128, 0.18)",
-                    border: "1px solid rgba(156, 163, 175, 0.28)",
+                    color: "#FECACA",
+                    backgroundColor: "rgba(220, 38, 38, 0.28)",
+                    border: "1px solid rgba(248, 113, 113, 0.55)",
                 };
             case "COMPLETADO":
                 return {
-                    color: "#93C5FD",
-                    backgroundColor: "rgba(59, 130, 246, 0.16)",
-                    border: "1px solid rgba(96, 165, 250, 0.30)",
+                    color: "#BBF7D0",
+                    backgroundColor: "rgba(22, 163, 74, 0.20)",
+                    border: "1px solid rgba(74, 222, 128, 0.38)",
                 };
             case "EN PROCESO":
                 return {
@@ -82,12 +89,10 @@ const DailySales = () => {
             return String(fecha);
         }
 
-        return parsedDate.toLocaleString("es-PE", {
+        return parsedDate.toLocaleDateString("es-PE", {
             day: "2-digit",
             month: "2-digit",
             year: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
         });
     };
 
@@ -114,6 +119,42 @@ const DailySales = () => {
         setSelectedIdCab(null);
     };
 
+    const hasFilters = (filters) => Boolean(filters.numDocum || filters.status);
+
+    const buildFilters = () => ({
+        numDocum: searchTerm.trim(),
+        status: historicalStatus,
+    });
+
+    const loadMainSalesPage = async (page = 1, filters = activeFilters, append = false) => {
+        if (page === 1) {
+            setIsSearching(true);
+        } else {
+            setIsLoadingMoreMain(true);
+        }
+
+        try {
+            const result = await dailySalesService.getPage(page, 10, filters);
+            const ventas = result.ventas || [];
+            const total = result.total || 0;
+
+            setSales((prev) => (append ? [...prev, ...ventas] : ventas));
+            setTotalSales(total);
+            setMainPage(page);
+            setActiveFilters(filters);
+            setIsFilteredView(hasFilters(filters));
+
+            if (hasFilters(filters)) {
+                setShowHistorical(false);
+            }
+        } catch (error) {
+            console.error("Error al cargar ventas filtradas:", error);
+        } finally {
+            setIsSearching(false);
+            setIsLoadingMoreMain(false);
+        }
+    };
+
     const handleCompleteSale = async (venta) => {
         if (!venta || !venta.idmov) {
             console.warn("No se recibió un idmov válido para completar la venta.");
@@ -130,8 +171,14 @@ const DailySales = () => {
 
         try {
             await dailySalesService.changeStateToComplete(venta.idmov, vendedor.trim());
-            await fetchSales();
-            if (showHistorical) {
+
+            if (isFilteredView) {
+                await loadMainSalesPage(1, activeFilters);
+            } else {
+                await fetchSales();
+            }
+
+            if (showHistorical && !isFilteredView) {
                 await loadHistoricalSales(historicalPage);
             }
         } catch (error) {
@@ -164,24 +211,30 @@ const DailySales = () => {
     };
 
     const handleSearch = async () => {
-        const filters = {
-            numDocum: searchTerm.trim(),
-            status: historicalStatus,
-        };
+        const filters = buildFilters();
 
-        if (!filters.numDocum && !filters.status) {
+        if (!hasFilters(filters)) {
             clearSearch();
             return;
         }
 
-        setIsSearching(true);
-        await loadHistoricalSales(1, filters);
+        await loadMainSalesPage(1, filters);
     };
 
     const clearSearch = () => {
+        const emptyFilters = { numDocum: "", status: "" };
+
         setSearchTerm("");
         setHistoricalStatus("");
-        loadHistoricalSales(1, { numDocum: "", status: "" });
+        setActiveFilters(emptyFilters);
+        setIsFilteredView(false);
+        setMainPage(1);
+        setTotalSales(0);
+        setShowHistorical(false);
+        setHistoricalSales([]);
+        setHistoricalPage(1);
+        setTotalHistorical(0);
+        fetchSales();
     };
 
     const handleShowHistorical = () => {
@@ -191,10 +244,68 @@ const DailySales = () => {
         setShowHistorical(!showHistorical);
     };
 
+    const handleLoadMoreMain = () => {
+        if (!isFilteredView || isLoadingMoreMain || sales.length >= totalSales) {
+            return;
+        }
+
+        const nextPage = mainPage + 1;
+        loadMainSalesPage(nextPage, activeFilters, true);
+    };
+
     const handleLoadMore = () => {
         const nextPage = historicalPage + 1;
         loadHistoricalSales(nextPage);
     };
+
+    const renderSearchFilters = () => (
+        <div style={styles.searchContainer}>
+            <div style={styles.searchFiltersRow}>
+                <div style={styles.filterField}>
+                    <label style={styles.filterLabel}>Buscar por Estado</label>
+                    <select
+                        value={historicalStatus}
+                        onChange={(e) => setHistoricalStatus(e.target.value)}
+                        style={styles.statusSelect}
+                    >
+                        <option value="">Todos</option>
+                        <option value="ANULADO">ANULADO</option>
+                        <option value="COMPLETADO">COMPLETADO</option>
+                        <option value="EN PROCESO">EN PROCESO</option>
+                    </select>
+                </div>
+
+                <div style={styles.filterField}>
+                    <label style={styles.filterLabel}>Buscar por Número de Documento</label>
+                    <input
+                        type="text"
+                        placeholder="Ej. N006 - 55945"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        style={styles.searchInput}
+                        onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                    />
+                </div>
+
+                <div style={styles.filterActions}>
+                    <button
+                        style={styles.searchActionButton}
+                        onClick={handleSearch}
+                        disabled={isSearching}
+                    >
+                        <FaSearch />
+                        <span>Buscar</span>
+                    </button>
+
+                    {(searchTerm || historicalStatus) && (
+                        <button style={styles.clearButton} onClick={clearSearch}>
+                            Limpiar
+                        </button>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
 
     const renderSaleCard = (venta, index) => {
         const statusUI = getStatusUI(venta.estado);
@@ -236,11 +347,6 @@ const DailySales = () => {
                         <span style={styles.totalLabel}>Valor de venta</span>
                         <span style={styles.totalValue}>{formatAmount(venta.vvta)}</span>
                     </div>
-
-                    <div style={{ ...styles.totalRow, ...styles.totalRowStrong }}>
-                        <span style={styles.totalLabel}>Total</span>
-                        <span style={styles.totalValue}>{formatAmount(venta.total)}</span>
-                    </div>
                 </div>
 
                 <div style={styles.actionsColumn}>
@@ -267,12 +373,15 @@ const DailySales = () => {
     return (
         <div style={styles.container}>
             <h2 style={styles.title}>Ventas Diarias</h2>
+            {role === "admin" && renderSearchFilters()}
             {isLoading ? (
                 <p>Cargando ventas diarias...</p>
             ) : (
                 <>
-                    {sales.length === 0 ? (
-                        <p>No hay ventas registradas hoy.</p>
+                    {isSearching && mainPage === 1 ? (
+                        <p>Buscando ventas...</p>
+                    ) : sales.length === 0 ? (
+                        <p>{isFilteredView ? "No se encontraron ventas con esos filtros." : "No hay ventas registradas hoy."}</p>
                     ) : (
                         <div style={styles.cardList}>
                             {sales.map((venta, index) => renderSaleCard(venta, index))}
@@ -281,63 +390,29 @@ const DailySales = () => {
                 </>
             )}
 
-            {role === "admin" && (
-                <div style={{ marginTop: "20px", textAlign: "center" }}>
+            {role === "admin" && isFilteredView && sales.length < totalSales && (
+                <div style={styles.historicalToggleContainer}>
+                    {isLoadingMoreMain ? (
+                        <p>Cargando más resultados...</p>
+                    ) : (
+                        <button style={styles.button} onClick={handleLoadMoreMain}>
+                            Ver más resultados
+                        </button>
+                    )}
+                </div>
+            )}
+
+            {role === "admin" && !isFilteredView && (
+                <div style={styles.historicalToggleContainer}>
                     <button style={styles.button} onClick={handleShowHistorical}>
                         {showHistorical ? "Ocultar Registro Histórico" : "MOSTRAR REGISTRO HISTÓRICO"}
                     </button>
                 </div>
             )}
 
-            {role === "admin" && showHistorical && (
-                <div style={{ marginTop: "20px" }}>
+            {role === "admin" && !isFilteredView && showHistorical && (
+                <div style={styles.historicalSection}>
                     <h2 style={styles.title}>Registro Histórico</h2>
-                    <div style={styles.searchContainer}>
-                        <div style={styles.searchFiltersRow}>
-                            <div style={styles.filterField}>
-                                <label style={styles.filterLabel}>Buscar por Estado</label>
-                                <select
-                                    value={historicalStatus}
-                                    onChange={(e) => setHistoricalStatus(e.target.value)}
-                                    style={styles.statusSelect}
-                                >
-                                    <option value="">Todos</option>
-                                    <option value="ANULADO">ANULADO</option>
-                                    <option value="COMPLETADO">COMPLETADO</option>
-                                    <option value="EN PROCESO">EN PROCESO</option>
-                                </select>
-                            </div>
-
-                            <div style={styles.filterField}>
-                                <label style={styles.filterLabel}>Buscar por Número de Documento</label>
-                                <input
-                                    type="text"
-                                    placeholder="Ej. N006 - 55945"
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    style={styles.searchInput}
-                                    onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                                />
-                            </div>
-
-                            <div style={styles.filterActions}>
-                                <button
-                                    style={styles.searchActionButton}
-                                    onClick={handleSearch}
-                                    disabled={isSearching}
-                                >
-                                    <FaSearch />
-                                    <span>Buscar</span>
-                                </button>
-
-                                {(searchTerm || historicalStatus) && (
-                                    <button style={styles.clearButton} onClick={clearSearch}>
-                                        Limpiar
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-                    </div>
 
                     {isHistoricalLoading && historicalPage === 1 ? (
                         <p>Cargando registro histórico...</p>
@@ -393,19 +468,22 @@ const styles = {
     },
     cardList: {
         display: "grid",
-        gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
-        gap: "20px",
+        gridTemplateColumns: "repeat(auto-fill, minmax(360px, 1fr))",
+        gap: "32px",
+        alignItems: "start",
+        marginTop: "18px",
+        marginBottom: "28px",
     },
     card: {
-        background: "linear-gradient(180deg, #111827 0%, #0F172A 100%)",
-        border: "1px solid rgba(148, 163, 184, 0.12)",
+        background: "linear-gradient(180deg, #1C1917 0%, #111111 100%)",
+        border: "1px solid rgba(245, 158, 11, 0.16)",
         borderRadius: "18px",
         padding: "18px",
-        boxShadow: "0 12px 24px rgba(2, 6, 23, 0.35)",
+        boxShadow: "0 14px 28px rgba(0, 0, 0, 0.35)",
         display: "flex",
         flexDirection: "column",
-        gap: "14px",
-        minHeight: "100%",
+        gap: "16px",
+        minHeight: "auto",
     },
     cardHeader: {
         display: "flex",
@@ -510,6 +588,14 @@ const styles = {
         cursor: "pointer",
         fontWeight: 700,
     },
+    historicalToggleContainer: {
+        margin: "30px 0 26px",
+        textAlign: "center",
+    },
+    historicalSection: {
+        marginTop: "10px",
+        marginBottom: "34px",
+    },
     primaryButton: {
         padding: "12px 16px",
         background: "linear-gradient(135deg, #4B5563 0%, #374151 100%)",
@@ -531,12 +617,13 @@ const styles = {
         width: "100%",
     },
     searchContainer: {
-        marginBottom: "18px",
+        width: "100%",
+        margin: "0 0 30px",
     },
     searchFiltersRow: {
         display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-        gap: "14px",
+        gridTemplateColumns: "minmax(240px, 300px) minmax(320px, 1fr) minmax(210px, 260px)",
+        gap: "18px",
         alignItems: "end",
     },
     filterField: {
