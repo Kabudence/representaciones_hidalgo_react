@@ -24,6 +24,10 @@ const GenerateXMLStructureForm = () => {
     const [itemList, setItemList] = useState([]);
     const [showSuccess, setShowSuccess] = useState(false);
     const [showCancelModal, setShowCancelModal] = useState(false);
+    const [paymentTypes, setPaymentTypes] = useState([]);
+    const [paymentList, setPaymentList] = useState([
+        { tipo_venta_id: "", monto: "", referencia: "" }
+    ]);
 
 
     const getPeruCurrentDate = () => {
@@ -80,6 +84,19 @@ const GenerateXMLStructureForm = () => {
         fetchNextNote();
     }, []);
 
+    useEffect(() => {
+        const fetchPaymentTypes = async () => {
+            try {
+                const response = await api.get("/regmovcab-pagos/tipos-venta");
+                setPaymentTypes(response.data?.tipos_venta || []);
+            } catch (error) {
+                console.error("Error obteniendo tipos de pago:", error);
+            }
+        };
+
+        fetchPaymentTypes();
+    }, []);
+
 
     useEffect(() => {
     }, [noteSalesInformation]);
@@ -87,13 +104,109 @@ const GenerateXMLStructureForm = () => {
     useEffect(() => {
     }, [showSuccess]);
 
+    const getTotalVenta = () => {
+        return itemList.reduce((total, item) => {
+            return total + ((parseFloat(item.ItemQuantity) || 0) * (parseFloat(item.ItemPrice) || 0));
+        }, 0);
+    };
+
+    const getTotalPagado = () => {
+        return paymentList.reduce((total, payment) => {
+            return total + (parseFloat(payment.monto) || 0);
+        }, 0);
+    };
+
+    const getDiferenciaPago = () => {
+        return getTotalVenta() - getTotalPagado();
+    };
+
+    const handlePaymentChange = (index, field, value) => {
+        const updatedPayments = [...paymentList];
+        updatedPayments[index] = {
+            ...updatedPayments[index],
+            [field]: value
+        };
+        setPaymentList(updatedPayments);
+    };
+
+    const addPayment = () => {
+        setPaymentList(prev => [
+            ...prev,
+            { tipo_venta_id: "", monto: "", referencia: "" }
+        ]);
+    };
+
+    const deletePayment = (index) => {
+        if (paymentList.length === 1) {
+            setPaymentList([{ tipo_venta_id: "", monto: "", referencia: "" }]);
+            return;
+        }
+        setPaymentList(paymentList.filter((_, i) => i !== index));
+    };
+
+    const getPaymentPayload = () => {
+        return paymentList.map(payment => ({
+            tipo_venta_id: parseInt(payment.tipo_venta_id, 10),
+            monto: parseFloat(payment.monto || 0).toFixed(2),
+            referencia: payment.referencia || null
+        }));
+    };
+
+    const validatePayments = () => {
+        if (itemList.length === 0) {
+            alert("Agrega al menos un producto antes de completar la venta.");
+            return false;
+        }
+
+        if (paymentList.length === 0) {
+            alert("Agrega al menos un medio de pago.");
+            return false;
+        }
+
+        for (let index = 0; index < paymentList.length; index++) {
+            const payment = paymentList[index];
+            if (!payment.tipo_venta_id) {
+                alert(`Selecciona el medio de pago en la fila ${index + 1}.`);
+                return false;
+            }
+
+            const monto = parseFloat(payment.monto);
+            if (!monto || monto <= 0) {
+                alert(`Ingresa un monto valido mayor a 0 en la fila ${index + 1}.`);
+                return false;
+            }
+        }
+
+        const totalVenta = getTotalVenta();
+        const totalPagado = getTotalPagado();
+        const diferencia = totalVenta - totalPagado;
+
+        if (Math.abs(diferencia) > 0.01) {
+            alert(`La suma de pagos debe coincidir con el total de la venta. Total venta: S/ ${totalVenta.toFixed(2)}. Total pagado: S/ ${totalPagado.toFixed(2)}. Diferencia: S/ ${diferencia.toFixed(2)}.`);
+            return false;
+        }
+
+        return true;
+    };
+
     const handleGenerate = async () => {
         try {
+            if (!validatePayments()) {
+                return;
+            }
 
             // 1. Ejecutar las operaciones en orden
             await callCreateAutomatic();
 
-            await callCreateInProcess();
+            const ventaCreada = await callCreateInProcess();
+
+            if (!ventaCreada?.idmov) {
+                throw new Error("No se recibio el idmov de la venta creada.");
+            }
+
+            await api.post(`/regmovcab-pagos/${ventaCreada.idmov}`, {
+                pagos: getPaymentPayload()
+            });
 
             generatePDF();
 
@@ -110,6 +223,7 @@ const GenerateXMLStructureForm = () => {
 
             setPartyClient({ AddressTypeCode: "0000", RegistrationName: "", IdentifyCode: "" });
             setItemList([]);
+            setPaymentList([{ tipo_venta_id: "", monto: "", referencia: "" }]);
 
 
             // 5. Actualizar número de nota
@@ -126,6 +240,7 @@ const GenerateXMLStructureForm = () => {
 
         } catch (error) {
             console.error("[ERROR] Durante el proceso:", error);
+            alert(error.response?.data?.error || error.message || "Ocurrio un error durante el proceso.");
         }
     };
 
@@ -435,6 +550,70 @@ const GenerateXMLStructureForm = () => {
                 )}
             </div>
 
+            {/* Sección de medios de pago */}
+            <div style={styles.section}>
+                <h2 style={styles.sectionTitle}>Medios de Pago</h2>
+
+                {paymentList.map((payment, index) => (
+                    <div key={index} style={styles.paymentRow}>
+                        <select
+                            value={payment.tipo_venta_id}
+                            onChange={(e) => handlePaymentChange(index, "tipo_venta_id", e.target.value)}
+                            style={styles.paymentSelect}
+                        >
+                            <option value="">Seleccionar medio</option>
+                            {paymentTypes.map((type) => (
+                                <option key={type.tipo_venta_id} value={type.tipo_venta_id}>
+                                    {type.name}
+                                </option>
+                            ))}
+                        </select>
+
+                        <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            placeholder="Monto"
+                            value={payment.monto}
+                            onChange={(e) => handlePaymentChange(index, "monto", e.target.value)}
+                            style={styles.paymentInput}
+                        />
+
+                        <input
+                            type="text"
+                            placeholder="Referencia"
+                            value={payment.referencia}
+                            onChange={(e) => handlePaymentChange(index, "referencia", e.target.value)}
+                            style={styles.paymentInput}
+                        />
+
+                        <button
+                            type="button"
+                            onClick={() => deletePayment(index)}
+                            style={styles.deletePaymentButton}
+                        >
+                            Eliminar
+                        </button>
+                    </div>
+                ))}
+
+                <button
+                    type="button"
+                    onClick={addPayment}
+                    style={styles.addPaymentButton}
+                >
+                    Agregar Medio de Pago
+                </button>
+
+                <div style={styles.paymentSummary}>
+                    <div><strong>Total venta:</strong> S/ {getTotalVenta().toFixed(2)}</div>
+                    <div><strong>Total pagado:</strong> S/ {getTotalPagado().toFixed(2)}</div>
+                    <div style={Math.abs(getDiferenciaPago()) <= 0.01 ? styles.paymentDifferenceOk : styles.paymentDifferencePending}>
+                        <strong>Diferencia:</strong> S/ {getDiferenciaPago().toFixed(2)}
+                    </div>
+                </div>
+            </div>
+
             {/* Botón principal de compra */}
             <button
                 type="button"
@@ -670,6 +849,65 @@ const styles = {
         alignItems: "center",
         justifyContent: "center",
         gap: "8px",
+    },
+
+    paymentRow: {
+        display: "grid",
+        gridTemplateColumns: "1.2fr 1fr 1fr auto",
+        gap: "10px",
+        alignItems: "center",
+        marginBottom: "10px",
+    },
+    paymentSelect: {
+        padding: "8px",
+        border: "1px solid #ced4da",
+        borderRadius: "4px",
+        backgroundColor: "#ffffff",
+        color: "#212529",
+    },
+    paymentInput: {
+        padding: "8px",
+        border: "1px solid #ced4da",
+        borderRadius: "4px",
+        backgroundColor: "#ffffff",
+        color: "#212529",
+    },
+    addPaymentButton: {
+        margin: "10px auto",
+        padding: "10px 18px",
+        backgroundColor: "#198754",
+        color: "white",
+        border: "none",
+        borderRadius: "8px",
+        cursor: "pointer",
+        fontWeight: "bold",
+        display: "block",
+    },
+    deletePaymentButton: {
+        backgroundColor: "#dc3545",
+        color: "white",
+        border: "none",
+        padding: "8px 12px",
+        cursor: "pointer",
+        borderRadius: "5px",
+        fontWeight: "bold",
+    },
+    paymentSummary: {
+        marginTop: "15px",
+        padding: "10px",
+        backgroundColor: "#f8f9fa",
+        borderRadius: "5px",
+        fontSize: "18px",
+        borderTop: "2px solid #dee2e6",
+        display: "flex",
+        flexDirection: "column",
+        gap: "5px",
+    },
+    paymentDifferenceOk: {
+        color: "#198754",
+    },
+    paymentDifferencePending: {
+        color: "#dc3545",
     },
 
     itemContainer: {

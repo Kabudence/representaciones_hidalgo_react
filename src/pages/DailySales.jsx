@@ -183,6 +183,8 @@ const DailySales = () => {
             }
         } catch (error) {
             console.error("Error al completar la venta:", error);
+            const message = error?.response?.data?.error || "Error al completar la venta.";
+            alert(message);
         }
     };
 
