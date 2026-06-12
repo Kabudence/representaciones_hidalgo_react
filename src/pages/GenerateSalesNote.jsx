@@ -41,6 +41,15 @@ const GenerateXMLStructureForm = () => {
         ].join('/');
     };
 
+    const getNoteIdFromNumDocum = (numDocum) => {
+        if (!numDocum) {
+            return noteSalesInformation.NoteID;
+        }
+
+        const parts = String(numDocum).split(" - ");
+        return (parts[1] || parts[0] || noteSalesInformation.NoteID).trim();
+    };
+
 
 
     // Función modificada para manejar edición y creación
@@ -204,18 +213,16 @@ const GenerateXMLStructureForm = () => {
                 throw new Error("No se recibio el idmov de la venta creada.");
             }
 
+            const createdNoteId = getNoteIdFromNumDocum(ventaCreada.num_docum);
+            const currentDate = getPeruCurrentDate();
+
             await api.post(`/regmovcab-pagos/${ventaCreada.idmov}`, {
                 pagos: getPaymentPayload()
             });
 
-            generatePDF();
+            generatePDF(createdNoteId, currentDate);
 
-            // 2. Incrementar el número de nota ANTES de obtenerlo
-            await SalesNoteService.incrementSalesNote();
-
-            const nextNumber = await SalesNoteService.getCurrentSalesNote();
-
-            const currentDate = getPeruCurrentDate(); // <-- Reemplazar línea anterior
+            const nextNumber = ventaCreada.next_boleta || await SalesNoteService.getCurrentSalesNote();
 
             setShowSuccess(true);
 
@@ -311,7 +318,7 @@ const GenerateXMLStructureForm = () => {
         }
     };
 
-    const generatePDF = () => {
+    const generatePDF = (noteId = noteSalesInformation.NoteID, issueDate = noteSalesInformation.IssueDate) => {
         const doc = new jsPDF("portrait", "pt", "a4"); // A4 vertical
 
         // Margen para el borde
@@ -338,12 +345,12 @@ const GenerateXMLStructureForm = () => {
 
         // Agrandar la letra del número de comprobante
         doc.setFontSize(18); // Tamaño de fuente más grande
-        doc.text(`N° ${noteSalesInformation.NoteID}`, 405, margin + 52);
+        doc.text(`N° ${noteId}`, 405, margin + 52);
 
         // Fecha
         doc.setFont("helvetica", "normal");
         doc.setFontSize(13);
-        doc.text(`Fecha: ${noteSalesInformation.IssueDate}`, 370, margin + 83);
+        doc.text(`Fecha: ${issueDate}`, 370, margin + 83);
 
         // Datos del cliente
         doc.setFontSize(11);
@@ -432,7 +439,7 @@ const GenerateXMLStructureForm = () => {
         );
 
         // Guardamos
-        doc.save(`NotaVenta_${noteSalesInformation.NoteID}.pdf`);
+        doc.save(`NotaVenta_${noteId}.pdf`);
     };
 
 
