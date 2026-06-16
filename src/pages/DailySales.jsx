@@ -1,5 +1,7 @@
 // src/pages/DailySales.jsx
 import { useState, useEffect } from "react";
+import jsPDF from "jspdf";
+import "jspdf-autotable";
 import dailySalesService from "../services/dailySalesService";
 import api from "../services/api";
 import { FaSearch } from "react-icons/fa";
@@ -185,6 +187,201 @@ const DailySales = () => {
         setSaleDetailPhotos([]);
         setSelectedPhotoIndex(0);
         setDetailError("");
+    };
+
+    const toNumber = (value) => {
+        const parsedValue = Number(value);
+        return Number.isNaN(parsedValue) ? 0 : parsedValue;
+    };
+
+    const getPrintableNoteId = (numDocum) => {
+        if (!numDocum) return "SIN DOCUMENTO";
+
+        const parts = String(numDocum).split(" - ");
+        return (parts[1] || parts[0] || numDocum).trim();
+    };
+
+    const getSaleCustomerName = (venta) => {
+        return venta?.cliente || venta?.nomcliente || venta?.nombre_cliente || "Cliente no especificado";
+    };
+
+    const getSaleCustomerDocument = (venta) => {
+        return venta?.ruc_cliente || venta?.documento || venta?.dni || venta?.ruc || "No registrado";
+    };
+
+    const buildSafeFileName = (value) => {
+        return String(value || "venta")
+            .replace(/[^a-zA-Z0-9_-]+/g, "_")
+            .replace(/^_+|_+$/g, "");
+    };
+
+    const resolvePdfItems = (items, saleTotal) => {
+        const normalizedItems = (Array.isArray(items) ? items : []).map((item) => {
+            const quantity = toNumber(item.cantidad) || 1;
+            const detailTotal = toNumber(item.total);
+            const fallbackUnit = toNumber(item.precio) + toNumber(item.igv);
+            const effectiveValue = detailTotal || fallbackUnit || toNumber(item.precio);
+
+            return {
+                ...item,
+                quantity,
+                effectiveValue,
+            };
+        });
+
+        const headerTotal = toNumber(saleTotal);
+        const totalAsLine = normalizedItems.reduce((sum, item) => sum + item.effectiveValue, 0);
+        const totalAsUnit = normalizedItems.reduce((sum, item) => sum + (item.effectiveValue * item.quantity), 0);
+        const shouldUseLineTotal = headerTotal > 0
+            && Math.abs(headerTotal - totalAsLine) <= 0.01
+            && Math.abs(headerTotal - totalAsUnit) > 0.01;
+
+        return normalizedItems.map((item) => {
+            const lineTotal = shouldUseLineTotal
+                ? item.effectiveValue
+                : item.effectiveValue * item.quantity;
+            const unitPrice = item.quantity ? lineTotal / item.quantity : item.effectiveValue;
+
+            return {
+                ...item,
+                unitPrice,
+                lineTotal,
+            };
+        });
+    };
+
+    const generateSalePrintPDF = (venta, detailItems = []) => {
+        const doc = new jsPDF("portrait", "pt", "a4");
+        const margin = 40;
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const noteId = getPrintableNoteId(venta?.num_docum);
+        const pdfItems = resolvePdfItems(detailItems, venta?.total);
+        const customerName = getSaleCustomerName(venta);
+        const customerDocument = getSaleCustomerDocument(venta);
+        const issueDate = formatSaleDate(venta?.fecha);
+
+        doc.setProperties({
+            title: `Nota de venta ${noteId}`,
+            subject: venta?.num_docum || "Nota de venta",
+            author: "Representaciones HIDALGO",
+        });
+
+        doc.setLineWidth(0.9);
+        doc.rect(margin - 14, margin - 5, pageWidth - (margin * 2) + 28, 740);
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(18);
+        doc.text("Representaciones HIDALGO", margin + 10, margin + 28);
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        doc.text("Fabricacion y Venta por Mayor y Menor de Muebles", margin + 10, margin + 44);
+        doc.text("para el Hogar Metalicos y de Madera", margin + 10, margin + 57);
+        doc.text("Colchones en General", margin + 10, margin + 70);
+
+        doc.setLineWidth(0.8);
+        doc.rect(pageWidth - 200, margin + 5, 150, 72);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(13);
+        doc.text("NOTA DE VENTA", pageWidth - 125, margin + 28, { align: "center" });
+        doc.setFontSize(18);
+        doc.text(`N° ${noteId}`, pageWidth - 125, margin + 54, { align: "center" });
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        doc.text(`Documento: ${venta?.num_docum || "Sin documento"}`, margin + 10, margin + 100);
+        doc.text(`Fecha: ${issueDate}`, pageWidth - 200, margin + 100);
+
+        doc.setLineWidth(0.5);
+        doc.rect(margin, margin + 114, pageWidth - (margin * 2), 58);
+        doc.setFont("helvetica", "bold");
+        doc.text("Cliente:", margin + 10, margin + 134);
+        doc.text("Documento/RUC:", margin + 10, margin + 154);
+        doc.setFont("helvetica", "normal");
+        doc.text(String(customerName), margin + 72, margin + 134, { maxWidth: pageWidth - 150 });
+        doc.text(String(customerDocument), margin + 102, margin + 154);
+
+        const tableRows = pdfItems.length > 0
+            ? pdfItems.map((item) => ([
+                formatAmount(item.quantity),
+                item.nomproducto || item.nombre_producto || item.producto || "Producto sin nombre",
+                `S/ ${formatAmount(item.unitPrice)}`,
+                `S/ ${formatAmount(item.lineTotal)}`,
+            ]))
+            : [["", "No se encontraron productos asociados", "", ""]];
+
+        doc.autoTable({
+            startY: margin + 192,
+            head: [["CANT.", "DESCRIPCION", "PRECIO UNIT.", "PRECIO TOTAL"]],
+            body: tableRows,
+            theme: "grid",
+            margin: { left: margin, right: margin },
+            columnStyles: {
+                0: { cellWidth: 52, halign: "center" },
+                1: { cellWidth: 300 },
+                2: { cellWidth: 82, halign: "right" },
+                3: { cellWidth: 81, halign: "right" },
+            },
+            headStyles: {
+                fillColor: [230, 230, 230],
+                textColor: [0, 0, 0],
+                fontStyle: "bold",
+                fontSize: 10,
+            },
+            bodyStyles: {
+                fontSize: 9,
+                textColor: [0, 0, 0],
+            },
+            tableLineColor: [0, 0, 0],
+            tableLineWidth: 0.5,
+        });
+
+        const finalY = doc.lastAutoTable.finalY + 18;
+        const totalsLabelX = pageWidth - 190;
+        const totalsValueX = pageWidth - margin;
+
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        doc.text("Valor venta:", totalsLabelX, finalY);
+        doc.text(`S/ ${formatAmount(venta?.vvta)}`, totalsValueX, finalY, { align: "right" });
+        doc.text("IGV:", totalsLabelX, finalY + 18);
+        doc.text(`S/ ${formatAmount(venta?.igv)}`, totalsValueX, finalY + 18, { align: "right" });
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+        doc.text("TOTAL:", totalsLabelX, finalY + 40);
+        doc.text(`S/ ${formatAmount(venta?.total)}`, totalsValueX, finalY + 40, { align: "right" });
+
+        const noteY = Math.max(finalY + 78, 610);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10);
+        doc.text("NOTA:", margin + 10, noteY);
+        doc.setFont("helvetica", "normal");
+        doc.text("Sirvase a canjear por su boleta de venta o factura", margin + 50, noteY);
+
+        const lineY = noteY + 48;
+        doc.setLineWidth(0.5);
+        doc.line(230, lineY, 330, lineY);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+        doc.text("Cancelado", 250, lineY + 20);
+
+        doc.save(`NotaVenta_${buildSafeFileName(venta?.num_docum || noteId)}.pdf`);
+    };
+
+    const handlePrintSale = async (venta) => {
+        if (!venta?.num_docum) {
+            alert("No se encontro numero de documento para imprimir.");
+            return;
+        }
+
+        try {
+            const detailItems = await fetchSaleDetailsByNumDoc(venta.num_docum);
+            generateSalePrintPDF(venta, Array.isArray(detailItems) ? detailItems : []);
+        } catch (error) {
+            console.error("Error al generar PDF de la venta:", error);
+            alert("No se pudo generar el PDF de la venta.");
+        }
     };
 
     const renderSaleDetailsModal = () => {
@@ -605,6 +802,13 @@ const DailySales = () => {
                         Más Información
                     </button>
 
+                    <button
+                        style={styles.printButton}
+                        onClick={() => handlePrintSale(venta)}
+                    >
+                        Imprimir
+                    </button>
+
                     {canCompleteSale(venta.estado) && (
                         <button
                             style={styles.secondaryActionButton}
@@ -847,6 +1051,16 @@ const styles = {
         background: "linear-gradient(135deg, #4B5563 0%, #374151 100%)",
         color: "white",
         border: "1px solid rgba(255, 255, 255, 0.08)",
+        borderRadius: "12px",
+        cursor: "pointer",
+        fontWeight: 700,
+        width: "100%",
+    },
+    printButton: {
+        padding: "12px 16px",
+        background: "rgba(255, 255, 255, 0.06)",
+        color: "#F8FAFC",
+        border: "1px solid rgba(148, 163, 184, 0.24)",
         borderRadius: "12px",
         cursor: "pointer",
         fontWeight: 700,
