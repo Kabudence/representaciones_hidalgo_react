@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import api from "../services/api";
@@ -24,6 +24,8 @@ const GenerateXMLStructureForm = () => {
     const [itemList, setItemList] = useState([]);
     const [showSuccess, setShowSuccess] = useState(false);
     const [showCancelModal, setShowCancelModal] = useState(false);
+    const [isGenerating, setIsGenerating] = useState(false);
+    const isGeneratingRef = useRef(false);
     const [paymentTypes, setPaymentTypes] = useState([]);
     const [paymentList, setPaymentList] = useState([
         { tipo_venta_id: "", monto: "", referencia: "" }
@@ -199,6 +201,15 @@ const GenerateXMLStructureForm = () => {
     };
 
     const handleGenerate = async () => {
+        if (isGeneratingRef.current) {
+            return;
+        }
+
+        isGeneratingRef.current = true;
+        setIsGenerating(true);
+
+        let completedSuccessfully = false;
+
         try {
             if (!validatePayments()) {
                 return;
@@ -224,6 +235,8 @@ const GenerateXMLStructureForm = () => {
 
             const nextNumber = ventaCreada.next_boleta || await SalesNoteService.getCurrentSalesNote();
 
+            completedSuccessfully = true;
+
             setShowSuccess(true);
 
 
@@ -248,6 +261,17 @@ const GenerateXMLStructureForm = () => {
         } catch (error) {
             console.error("[ERROR] Durante el proceso:", error);
             alert(error.response?.data?.error || error.message || "Ocurrio un error durante el proceso.");
+        } finally {
+            const releaseGenerateLock = () => {
+                isGeneratingRef.current = false;
+                setIsGenerating(false);
+            };
+
+            if (completedSuccessfully) {
+                setTimeout(releaseGenerateLock, 1200);
+            } else {
+                releaseGenerateLock();
+            }
         }
     };
 
@@ -625,9 +649,14 @@ const GenerateXMLStructureForm = () => {
             <button
                 type="button"
                 onClick={handleGenerate}
-                style={styles.generateButton}
+                disabled={isGenerating}
+                style={{
+                    ...styles.generateButton,
+                    opacity: isGenerating ? 0.6 : 1,
+                    cursor: isGenerating ? "not-allowed" : "pointer"
+                }}
             >
-                Completar Compra
+                {isGenerating ? "Generando venta..." : "Completar Compra"}
             </button>
 
             {/* Modal de cancelación */}
