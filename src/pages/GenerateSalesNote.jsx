@@ -26,6 +26,7 @@ const GenerateXMLStructureForm = () => {
     const [showCancelModal, setShowCancelModal] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
     const isGeneratingRef = useRef(false);
+    const pendingCreatedSaleRef = useRef(null);
     const [paymentTypes, setPaymentTypes] = useState([]);
     const [paymentList, setPaymentList] = useState([
         { tipo_venta_id: "", monto: "", referencia: "" }
@@ -215,13 +216,19 @@ const GenerateXMLStructureForm = () => {
                 return;
             }
 
-            // 1. Ejecutar las operaciones en orden
-            await callCreateAutomatic();
+            let ventaCreada = pendingCreatedSaleRef.current;
 
-            const ventaCreada = await callCreateInProcess();
+            if (!ventaCreada) {
+                // 1. Ejecutar las operaciones en orden
+                await callCreateAutomatic();
 
-            if (!ventaCreada?.idmov) {
-                throw new Error("No se recibio el idmov de la venta creada.");
+                ventaCreada = await callCreateInProcess();
+
+                if (!ventaCreada?.idmov) {
+                    throw new Error("No se recibio el idmov de la venta creada.");
+                }
+
+                pendingCreatedSaleRef.current = ventaCreada;
             }
 
             const createdNoteId = getNoteIdFromNumDocum(ventaCreada.num_docum);
@@ -235,6 +242,7 @@ const GenerateXMLStructureForm = () => {
 
             const nextNumber = ventaCreada.next_boleta || await SalesNoteService.getCurrentSalesNote();
 
+            pendingCreatedSaleRef.current = null;
             completedSuccessfully = true;
 
             setShowSuccess(true);
