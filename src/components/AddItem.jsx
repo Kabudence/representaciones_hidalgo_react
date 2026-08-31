@@ -75,16 +75,17 @@ const AddItem = ({ onAddItem, onCancel }) => {
     };
 
     return (
-        <div style={styles.container}>
-            <h3 style={styles.title}>Agregar Ítem</h3>
+        <div className="compra-add-item" style={styles.container}>
+            <h3 className="compra-add-item-title" style={styles.title}>Agregar Ítem</h3>
             <input
                 type="text"
                 placeholder="Buscar producto..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                className="compra-add-item-search"
                 style={styles.searchInput}
             />
-            <ul style={styles.productList}>
+            <ul className="compra-add-item-products" style={styles.productList}>
                 {filteredProducts.map((product, index) => (
                     <li
                         key={index}
@@ -102,7 +103,7 @@ const AddItem = ({ onAddItem, onCancel }) => {
                 ))}
             </ul>
             {selectedProduct && (
-                <div style={styles.selectedContainer}>
+                <div className="compra-add-item-selected" style={styles.selectedContainer}>
                     <p>
                         Producto seleccionado:{" "}
                         <strong>{selectedProduct.nomproducto}</strong>
@@ -112,44 +113,47 @@ const AddItem = ({ onAddItem, onCancel }) => {
                         {" "}Stock actual :{" "}
                         <strong>{selectedProduct.st_act}</strong>
                     </p>
-                    <div style={styles.fieldGroup}>
+                    <div className="compra-add-item-field" style={styles.fieldGroup}>
                         <label style={styles.fieldLabel}>Cantidad:</label>
                         <input
                             type="number"
                             value={cantidad}
                             onChange={(e) => setCantidad(e.target.value)}
+                            className="compra-add-item-input"
                             style={styles.inputSmall}
                         />
                     </div>
-                    <div style={styles.fieldGroup}>
+                    <div className="compra-add-item-field" style={styles.fieldGroup}>
                         <label style={styles.fieldLabel}>Precio sugerido:</label>
                         <input
                             type="number"
                             value={precio}
                             onChange={(e) => setPrecio(e.target.value)}
+                            className="compra-add-item-input"
                             style={styles.inputSmall}
                         />
                     </div>
-                    <div style={styles.fieldGroup}>
+                    <div className="compra-add-item-field" style={styles.fieldGroup}>
                         <label style={styles.fieldLabel}>IGV:</label>
                         <input
                             type="number"
                             value={igv}
                             onChange={(e) => setIgv(e.target.value)}
+                            className="compra-add-item-input"
                             style={styles.inputSmall}
                         />
                     </div>
-                    <p style={styles.summary}>
+                    <p className="compra-add-item-summary" style={styles.summary}>
                         {selectedProduct.nomproducto} - Cantidad: {cantidad} - Precio:{" "}
                         {precio} - IGV: {igv}
                     </p>
                 </div>
             )}
-            <div style={styles.buttonGroup}>
-                <button type="button" onClick={handleSubmit} style={styles.addButton}>
+            <div className="compra-add-item-actions" style={styles.buttonGroup}>
+                <button className="compra-add-item-button" type="button" onClick={handleSubmit} style={styles.addButton}>
                     Agregar
                 </button>
-                <button type="button" onClick={onCancel} style={styles.cancelButton}>
+                <button className="compra-add-item-button" type="button" onClick={onCancel} style={styles.cancelButton}>
                     Cancelar
                 </button>
             </div>

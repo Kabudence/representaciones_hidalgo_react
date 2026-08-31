@@ -23,10 +23,10 @@ const ElementsByIdCab = ({ numDocum, onClose }) => {
     }, [numDocum]);
 
     return (
-        <div style={styles.modalOverlay}>
-            <div style={styles.modal}>
-                <div style={styles.header}>
-                    <h2 style={styles.title}>Detalles: {numDocum}</h2>
+        <div className="compra-details-overlay" style={styles.modalOverlay}>
+            <div className="compra-details-modal" style={styles.modal}>
+                <div className="compra-details-header" style={styles.header}>
+                    <h2 className="compra-details-title" style={styles.title}>Detalles: {numDocum}</h2>
                     <button onClick={onClose} style={styles.closeButton}>
                         &times;
                     </button>

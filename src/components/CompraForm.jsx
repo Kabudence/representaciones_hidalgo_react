@@ -80,76 +80,82 @@ const CompraForm = ({ compra, setCompra, onSubmit, onCancel }) => {
     };
 
     return (
-        <form onSubmit={handleSubmitForm} style={styles.form}>
+        <form className="compra-form" onSubmit={handleSubmitForm} style={styles.form}>
             <h2>Datos de la Compra</h2>
-            <div style={styles.formGroup}>
+            <div className="compra-form-group" style={styles.formGroup}>
                 <label style={styles.label}>Número de Documento:</label>
                 <input
                     type="text"
                     name="num_docum"
                     value={compra.num_docum}
                     onChange={handleChange}
+                    className="compra-form-input"
                     style={styles.input}
                     required
                 />
             </div>
 
-            <div style={styles.formGroup}>
+            <div className="compra-form-group" style={styles.formGroup}>
                 <label style={styles.label}>RUC Cliente:</label>
                 <input
                     type="text"
                     name="ruc_cliente"
                     value={compra.ruc_cliente}
                     onChange={handleChange}
+                    className="compra-form-input"
                     style={styles.input}
                     required
                 />
             </div>
 
             <h3>Datos del Proveedor</h3>
-            <div style={styles.formGroup}>
+            <div className="compra-form-group" style={styles.formGroup}>
                 <label style={styles.label}>RUC:</label>
                 <input
                     type="text"
                     name="ruc"
                     value={compra.proveedor?.ruc || ""}
                     onChange={handleProveedorChange}
+                    className="compra-form-input"
                     style={styles.input}
                 />
             </div>
-            <div style={styles.formGroup}>
+            <div className="compra-form-group" style={styles.formGroup}>
                 <label style={styles.label}>Nombre Proveedor:</label>
                 <input
                     type="text"
                     name="nomproveedor"
                     value={compra.proveedor?.nomproveedor || ""}
                     onChange={handleProveedorChange}
+                    className="compra-form-input"
                     style={styles.input}
                 />
             </div>
-            <div style={styles.formGroup}>
+            <div className="compra-form-group" style={styles.formGroup}>
                 <label style={styles.label}>Dirección:</label>
                 <input
                     type="text"
                     name="direccion"
                     value={compra.proveedor?.direccion || ""}
                     onChange={handleProveedorChange}
+                    className="compra-form-input"
                     style={styles.input}
                 />
             </div>
-            <div style={styles.formGroup}>
+            <div className="compra-form-group" style={styles.formGroup}>
                 <label style={styles.label}>Contacto:</label>
                 <input
                     type="text"
                     name="contacto"
                     value={compra.proveedor?.contacto || ""}
                     onChange={handleProveedorChange}
+                    className="compra-form-input"
                     style={styles.input}
                 />
             </div>
 
             <h3>Ítems de la Compra</h3>
-            <div style={styles.buttonGroup}>
+            <div className="compra-form-button-group" style={styles.buttonGroup}>
                 <button
                     type="button"
                     onClick={() => setShowAddItemModal(true)}
@@ -161,11 +167,11 @@ const CompraForm = ({ compra, setCompra, onSubmit, onCancel }) => {
 
             {/* Muestra la lista de ítems agregados */}
             {compra.ItemList && compra.ItemList.length > 0 && (
-                <div style={styles.itemList}>
+                <div className="compra-form-item-list" style={styles.itemList}>
                     <ul style={styles.ul}>
                         {compra.ItemList.map((item, index) => (
-                            <li key={index} style={styles.li}>
-                <span>
+                            <li className="compra-form-item" key={index} style={styles.li}>
+                <span className="compra-form-item-text">
                   <strong>Producto:</strong> {item.producto} -{" "}
                     <strong>Cantidad:</strong> {item.cantidad} -{" "}
                     <strong>Precio:</strong> {item.precio} -{" "}
@@ -174,6 +180,7 @@ const CompraForm = ({ compra, setCompra, onSubmit, onCancel }) => {
                                 <button
                                     type="button"
                                     onClick={() => handleRemoveItem(index)}
+                                    className="compra-form-remove-button"
                                     style={styles.removeButton}
                                 >
                                     Eliminar
@@ -184,7 +191,7 @@ const CompraForm = ({ compra, setCompra, onSubmit, onCancel }) => {
                 </div>
             )}
 
-            <div style={styles.buttonGroup}>
+            <div className="compra-form-button-group" style={styles.buttonGroup}>
                 <button type="submit" style={styles.saveButton}>
                     Guardar
                 </button>
@@ -194,8 +201,8 @@ const CompraForm = ({ compra, setCompra, onSubmit, onCancel }) => {
             </div>
 
             {showAddItemModal && (
-                <div style={styles.modalOverlay}>
-                    <div style={styles.modal}>
+                <div className="compra-item-modal-overlay" style={styles.modalOverlay}>
+                    <div className="compra-item-modal" style={styles.modal}>
                         <AddItem
                             onAddItem={handleAddItem}
                             onCancel={() => setShowAddItemModal(false)}

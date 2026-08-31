@@ -112,20 +112,21 @@ const ComprasAdvancedSearch = ({ onSearch }) => {
     };
 
     return (
-        <div style={styles.container}>
-            <div style={styles.header}>
-                <h3 style={styles.title}>Búsqueda Avanzada</h3>
-                <button style={styles.button} onClick={toggleAdvancedSearch}>
+        <div className="compras-search" style={styles.container}>
+            <div className="compras-search-header" style={styles.header}>
+                <h3 className="compras-search-title" style={styles.title}>Búsqueda Avanzada</h3>
+                <button className="compras-search-toggle" style={styles.button} onClick={toggleAdvancedSearch}>
                     {showAdvanced ? "Ocultar 🔍" : "Mostrar 🔍"}
                 </button>
             </div>
-            <form style={styles.form} onSubmit={handleSubmit}>
+            <form className="compras-search-form" style={styles.form} onSubmit={handleSubmit}>
                 <input
                     type="text"
                     name="fromPrice"
                     placeholder="Desde S/"
                     value={filters.fromPrice}
                     onChange={handleChange}
+                    className="compras-search-control"
                     style={styles.input}
                 />
                 <input
@@ -134,6 +135,7 @@ const ComprasAdvancedSearch = ({ onSearch }) => {
                     placeholder="Hasta S/"
                     value={filters.toPrice}
                     onChange={handleChange}
+                    className="compras-search-control"
                     style={styles.input}
                 />
                 <input
@@ -142,6 +144,7 @@ const ComprasAdvancedSearch = ({ onSearch }) => {
                     placeholder="Nombre del Proveedor"
                     value={filters.providerName}
                     onChange={handleChange}
+                    className="compras-search-control"
                     style={styles.input}
                 />
                 <input
@@ -150,6 +153,7 @@ const ComprasAdvancedSearch = ({ onSearch }) => {
                     placeholder="Fecha Desde"
                     value={filters.fromDate}
                     onChange={handleChange}
+                    className="compras-search-control"
                     style={styles.input}
                 />
                 <input
@@ -158,12 +162,14 @@ const ComprasAdvancedSearch = ({ onSearch }) => {
                     placeholder="Fecha Hasta"
                     value={filters.toDate}
                     onChange={handleChange}
+                    className="compras-search-control"
                     style={styles.input}
                 />
                 <select
                     name="saleType"
                     value={filters.saleType}
                     onChange={handleChange}
+                    className="compras-search-control"
                     style={styles.select}
                 >
                     <option value="">Tipo de Venta</option>
@@ -176,6 +182,7 @@ const ComprasAdvancedSearch = ({ onSearch }) => {
                     placeholder="RUC del Cliente"
                     value={filters.clientRUC}
                     onChange={handleChange}
+                    className="compras-search-control"
                     style={styles.input}
                 />
                 <input
@@ -184,12 +191,14 @@ const ComprasAdvancedSearch = ({ onSearch }) => {
                     placeholder="Número de Documento"
                     value={filters.numDocum}
                     onChange={handleChange}
+                    className="compras-search-control"
                     style={styles.input}
                 />
                 <select
                     name="status"
                     value={filters.status}
                     onChange={handleChange}
+                    className="compras-search-control"
                     style={styles.select}
                 >
                     <option value="">Estado</option>
@@ -197,10 +206,10 @@ const ComprasAdvancedSearch = ({ onSearch }) => {
                     <option value="EN PROCESO">EN PROCESO</option>
                     <option value="ANULADO">ANULADO</option>
                 </select>
-                <button type="submit" style={styles.button}>
+                <button className="compras-search-button" type="submit" style={styles.button}>
                     Buscar
                 </button>
-                <button type="button" style={styles.clearButton} onClick={handleClear}>
+                <button className="compras-search-button" type="button" style={styles.clearButton} onClick={handleClear}>
                     Limpiar
                 </button>
             </form>

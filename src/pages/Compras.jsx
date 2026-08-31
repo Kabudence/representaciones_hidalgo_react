@@ -8,6 +8,7 @@ import jsPDF from "jspdf";
 import "jspdf-autotable";
 import moment from "moment-timezone";
 import { useNavigate } from "react-router-dom";
+import "../assets/styles/compras-mobile.css";
 
 const Compras = () => {
     const [compras, setCompras] = useState([]);
@@ -230,14 +231,15 @@ const Compras = () => {
     };
 
     return (
-        <div style={styles.container}>
-            <div style={styles.header}>
-                <h1 style={styles.title}>Listado de Compras</h1>
-                <div>
-                    <button style={styles.pdfButton} onClick={() => exportToPDF(filters)}>
+        <div className="compras-page" style={styles.container}>
+            <div className="compras-header" style={styles.header}>
+                <h1 className="compras-title" style={styles.title}>Listado de Compras</h1>
+                <div className="compras-header-actions">
+                    <button className="compras-action-button" style={styles.pdfButton} onClick={() => exportToPDF(filters)}>
                         🖨️ Generar PDF
                     </button>
                     <button
+                        className="compras-action-button"
                         style={{ ...styles.pdfButton, marginLeft: "10px" }}
                         onClick={openCompraModal}
                     >
@@ -249,7 +251,7 @@ const Compras = () => {
             {isLoading ? (
                 <p style={styles.loading}>Cargando...</p>
             ) : (
-                <table style={styles.table}>
+                <table className="compras-table" style={styles.table}>
                     <thead>
                     <tr style={styles.tableHeader}>
                         <th style={styles.tableCell}>Fecha</th>
@@ -268,7 +270,7 @@ const Compras = () => {
                     <tbody>
                     {compras.length > 0 ? (
                         compras.map((compra, index) => (
-                            <tr key={index} style={styles.tableRow}>
+                            <tr className="compras-table-row" key={index} style={styles.tableRow}>
                                 <td style={styles.tableCell}>
                                     {moment.utc(compra.fecha).add(5, 'hours').format("YYYY-MM-DD")}
                                 </td>
@@ -293,12 +295,14 @@ const Compras = () => {
                                     {compra.estado === "COMPLETADO" && (
                                         <>
                                             <button
+                                                className="compras-row-action-button"
                                                 style={styles.cancelButton}
                                                 onClick={() => handleCancelCompra(compra.num_docum)}
                                             >
                                                 ANULAR
                                             </button>
                                             <button
+                                                className="compras-row-action-button"
                                                 style={styles.viewButton}
                                                 onClick={() => handleViewElements(compra.num_docum)}
                                             >
@@ -311,7 +315,7 @@ const Compras = () => {
                         ))
                     ) : (
                         <tr>
-                            <td colSpan="11" style={styles.tableCell}>
+                            <td className="compras-empty-cell" colSpan="11" style={styles.tableCell}>
                                 No se encontraron resultados.
                             </td>
                         </tr>
@@ -319,8 +323,9 @@ const Compras = () => {
                     </tbody>
                 </table>
             )}
-            <div style={styles.pagination}>
+            <div className="compras-pagination" style={styles.pagination}>
                 <button
+                    className="compras-pagination-button"
                     onClick={handlePrevious}
                     disabled={currentPage === 1}
                     style={{
@@ -330,10 +335,11 @@ const Compras = () => {
                 >
                     Anterior
                 </button>
-                <span style={styles.pageIndicator}>
+                <span className="compras-page-indicator" style={styles.pageIndicator}>
                     Página {currentPage} de {totalPages}
                 </span>
                 <button
+                    className="compras-pagination-button"
                     onClick={handleNext}
                     disabled={currentPage === totalPages}
                     style={{
@@ -346,8 +352,8 @@ const Compras = () => {
             </div>
 
             {showCompraModal && (
-                <div style={styles.modalOverlay}>
-                    <div style={styles.modal}>
+                <div className="compras-modal-overlay" style={styles.modalOverlay}>
+                    <div className="compras-modal" style={styles.modal}>
                         <CompraForm
                             compra={compra}
                             setCompra={setCompra}
