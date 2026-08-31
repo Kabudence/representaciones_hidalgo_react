@@ -60,6 +60,7 @@ const Navbar = () => {
         { href: "/analiticas", label: "Analíticas" },
         { href: "/daily-sales", label: "Ventas diarias" },
         { href: "/nota-venta", label: "Nota de venta" },
+        { href: "/compras", label: "Compras" },
         { href: "/productos", label: "Productos" },
         { href: "/", label: "Home" },
     ];
