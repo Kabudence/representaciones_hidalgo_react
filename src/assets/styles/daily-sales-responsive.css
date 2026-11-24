@@ -1,0 +1,28 @@
+.daily-sales, .daily-sales * { box-sizing: border-box; }
+.daily-sales { overflow-wrap: anywhere; color: #f9fafb; }
+.daily-filter-grid > * { min-width: 0; }
+.daily-detail { max-height: calc(100dvh - 44px) !important; }
+.daily-seller-form { max-width: 420px; display: grid; gap: 12px; }
+.daily-evidence-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); }
+.daily-evidence { margin: 0; min-width: 0; background: #10151c; border: 1px solid #465060; border-radius: 8px; overflow: hidden; }
+.daily-evidence img { width: 100%; max-height: 460px; display: block; background: #0a0c10; object-fit: contain; }
+.daily-evidence figcaption { display: grid; gap: 5px; padding: 10px 12px; }
+.daily-evidence small { color: #a4b0c1; }
+.daily-image-status { display: flex; padding: 10px 12px; align-items: center; gap: 8px; flex-wrap: wrap; }
+.daily-image-button { display: inline-flex; align-items: center; gap: 6px; justify-self: start; padding: 7px 10px; min-height: 36px; border: 1px solid #536073; border-radius: 6px; background: #222b38; color: #f9fafb; cursor: pointer; }
+
+@media (max-width: 940px) {
+    .daily-filter-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important; }
+    .daily-filter-grid > :last-child { grid-column: 1 / -1; flex-direction: row !important; justify-content: flex-start !important; }
+}
+
+@media (max-width: 600px) {
+    .daily-sales { max-width: calc(100% - 16px) !important; padding: 12px !important; }
+    .daily-filter-grid { grid-template-columns: minmax(0, 1fr) !important; gap: 10px !important; }
+    .daily-overlay { padding: 8px !important; }
+    .daily-detail { width: 100% !important; max-height: calc(100dvh - 16px) !important; padding: 12px !important; border-radius: 8px !important; }
+    .daily-detail-header { flex-wrap: wrap; gap: 8px !important; }
+    .daily-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px !important; }
+    .daily-summary-grid > div, .daily-photo-section { padding: 10px !important; }
+    .daily-photo-workspace { grid-template-columns: minmax(0, 1fr) !important; }
+}
