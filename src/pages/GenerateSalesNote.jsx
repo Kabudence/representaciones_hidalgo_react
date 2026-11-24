@@ -7,6 +7,7 @@ import CancelSaleModal from "../components/CancelSaleModal.jsx";
 
 import {TbZoomCancelFilled} from "react-icons/tb";
 import AddItem from "../components/AddItem.jsx";
+import { formatLimaDate } from "../utils/limaTime";
 
 const GenerateXMLStructureForm = () => {
     const [partyClient, setPartyClient] = useState({
@@ -33,16 +34,7 @@ const GenerateXMLStructureForm = () => {
     ]);
 
 
-    const getPeruCurrentDate = () => {
-        const date = new Date();
-        date.setHours(date.getHours() - 5); // Ajuste UTC-5
-        // Formato manual garantizado: dd/mm/aaaa
-        return [
-            String(date.getDate()).padStart(2, '0'),
-            String(date.getMonth() + 1).padStart(2, '0'),
-            date.getFullYear()
-        ].join('/');
-    };
+    const getPeruCurrentDate = () => formatLimaDate();
 
     const getNoteIdFromNumDocum = (numDocum) => {
         if (!numDocum) {
@@ -232,7 +224,7 @@ const GenerateXMLStructureForm = () => {
             }
 
             const createdNoteId = getNoteIdFromNumDocum(ventaCreada.num_docum);
-            const currentDate = getPeruCurrentDate();
+            const currentDate = formatLimaDate(ventaCreada.regmovcab?.fecha ?? new Date());
 
             await api.post(`/regmovcab-pagos/${ventaCreada.idmov}`, {
                 pagos: getPaymentPayload()
@@ -257,7 +249,7 @@ const GenerateXMLStructureForm = () => {
             // 5. Actualizar número de nota
             setNoteSalesInformation({
                 NoteID: nextNumber.toString(),
-                IssueDate: currentDate
+                IssueDate: getPeruCurrentDate()
             });
 
 

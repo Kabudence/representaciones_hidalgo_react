@@ -5,6 +5,7 @@ import EmployeeForm from "../components/EmployeeForm.jsx";
 import Pagination from "../components/Pagination";
 import employeeService from "../services/employeeService";
 import {useNavigate} from "react-router-dom";
+import "../assets/styles/catalog-responsive.css";
 
 const Employees = () => {
     const [employees, setEmployees] = useState([]);
@@ -181,21 +182,21 @@ const Employees = () => {
     }
 
     return (
-        <div style={styles.container}>
-            <h1 style={styles.title}>Lista de Empleados</h1>
-            <div style={styles.searchContainer}>
+        <div className="catalog-shell" style={styles.container}>
+            <h1 className="catalog-title" style={styles.title}>Lista de Empleados</h1>
+            <div className="catalog-toolbar" style={styles.searchContainer}>
                 <input
                     type="text"
                     placeholder="Buscar empleado..."
                     value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
                     style={styles.searchInput}
                 />
                 <button onClick={() => handleOpenModal("Agregar")} style={styles.addButton}>
                     Agregar Empleado
                 </button>
             </div>
-            <table style={styles.table}>
+            <table className="catalog-table" style={styles.table}>
                 <thead>
                 <tr style={styles.tableHeader}>
                     <th>ID</th>
@@ -210,12 +211,13 @@ const Employees = () => {
                 <tbody>
                 {paginatedEmployees.map((employee) => (
                     <tr key={employee.id} style={styles.tableRow}>
-                        <td style={styles.tableCell}>{employee.id}</td>
-                        <td style={styles.tableCell}>{employee.nombre}</td>
-                        <td style={styles.tableCell}>{employee.direccion}</td>
-                        <td style={styles.tableCell}>{employee.telefono}</td>
-                        <td style={styles.tableCell}>{employee.correo}</td>
+                        <td data-label="ID" style={styles.tableCell}>{employee.id}</td>
+                        <td data-label="Nombre" className="catalog-item-name" style={styles.tableCell}>{employee.nombre}</td>
+                        <td data-label="Dirección" style={styles.tableCell}>{employee.direccion}</td>
+                        <td data-label="Teléfono" style={styles.tableCell}>{employee.telefono}</td>
+                        <td data-label="Correo" style={styles.tableCell}>{employee.correo}</td>
                         <td
+                            data-label="Estado"
                             style={{
                                 ...styles.tableCell,
                                 color: employee.estado === "1" ? "green" : "red",
@@ -223,7 +225,7 @@ const Employees = () => {
                         >
                             {employee.estado === "1" ? "Activo" : "Inactivo"}
                         </td>
-                        <td style={styles.tableCell}>
+                        <td className="catalog-row-actions" style={styles.tableCell}>
                             <button
                                 onClick={() => handleOpenModal("Editar", employee)}
                                 style={styles.editButton}
@@ -248,7 +250,7 @@ const Employees = () => {
             />
             {showModal && (
                 <div style={styles.modalOverlay}>
-                    <div style={styles.modal}>
+                    <div className="catalog-modal" style={styles.modal}>
                         <h2>{formType} Empleado</h2>
                         <EmployeeForm
                             employee={currentEmployee}

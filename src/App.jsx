@@ -18,8 +18,10 @@ import NoAutorizado from "./pages/NoAutorizado.jsx";
 import DailySales from "./pages/DailySales.jsx";
 import GenerateSalesNote from "./pages/GenerateSalesNote.jsx";
 import Analytics from "./pages/Analytics.jsx";
+import PaymentEvidence from "./pages/PaymentEvidence.jsx"
+import InventoryDiagnosis from "./pages/InventoryDiagnosis.jsx";
 
-const ProtectedRoute = ({ children }) => {
+const ProtectedRoute = ({ children, adminOnly = false }) => {
     const { authData, isAuthDataLoaded } = useContext(AuthContext);
 
     // Logs para depuración de ProtectedRoute
@@ -30,6 +32,9 @@ const ProtectedRoute = ({ children }) => {
 
     if (!authData || !authData.token) {
         return <Navigate to="/" replace />;
+    }
+    if (adminOnly && authData.role !== "admin") {
+        return <Navigate to="/no-autorizado" replace />;
     }
 
     return children;
@@ -66,6 +71,22 @@ const App = () => {
                                 element={
                                     <ProtectedRoute>
                                         <Analytics />
+                                    </ProtectedRoute>
+                                }
+                            />
+                            <Route
+                                path="/diagnostico-inventario"
+                                element={
+                                    <ProtectedRoute adminOnly>
+                                        <InventoryDiagnosis />
+                                    </ProtectedRoute>
+                                }
+                            />
+                            <Route
+                                path="/evidencias-pago"
+                                element={
+                                    <ProtectedRoute>
+                                        <PaymentEvidence />
                                     </ProtectedRoute>
                                 }
                             />
@@ -154,6 +175,7 @@ const App = () => {
 };
 
 ProtectedRoute.propTypes = {
+    adminOnly: PropTypes.bool,
     children: PropTypes.node.isRequired, // 'children' debe ser un nodo React (componente hijo)
 };
 

@@ -10,10 +10,16 @@ const dailySalesService = {
     },
 
     // Obtiene fotos asociadas a un idcab con paginación (offset, limit)
-    getPhotosByIdCab: async (idcab, offset, limit) => {
-        const response = await api.get(`/fotos/by-idcab/${idcab}?offset=${offset}&limit=${limit}`);
-        console.log("🔹 getPhotosByIdCab RESPUESTA:", { idcab, offset, limit, data: response.data });
+    getPhotosByIdCab: async (idcab, offset, limit, includeImages = true) => {
+        const response = await api.get(`/fotos/by-idcab/${idcab}`, {
+            params: { offset, limit, include_images: includeImages ? 1 : 0 },
+        });
         return response.data?.fotos || [];
+    },
+
+    getPhotoImage: async (photoId, signal) => {
+        const response = await api.get(`/fotos/imagen-privada/${photoId}`, { signal, responseType: "blob" });
+        return response.data;
     },
 
     getPage: async (page = 1, size = 10, filters = {}) => {
@@ -43,13 +49,12 @@ const dailySalesService = {
 
         return response.data;
     },
-    changeStateToComplete: async (idmov, vendedor) => {
-        const body = { vendedor }; // el back espera { "vendedor": "nombre/dni" }
+    changeStateToComplete: async (idmov, vendedorId) => {
+        const body = { vendedor_id: vendedorId };
         const response = await api.put(
             `/regmovcab/change-state-to-complete/${idmov}`,
             body
         );
-        console.log("🔹 changeStateToComplete RESPUESTA:", { idmov, vendedor, data: response.data });
         return response.data;
     },
 

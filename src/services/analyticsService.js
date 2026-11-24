@@ -7,6 +7,19 @@ const analyticsService = {
         return response.data;
     },
 
+    getPaymentSales: async ({ range, page, discrepanciesOnly, signal }) => {
+        const response = await api.get("/analytics/payment-sales", {
+            params: { range, page, discrepancies_only: discrepanciesOnly ? 1 : undefined },
+            signal,
+        });
+        return response.data;
+    },
+
+    getInventoryDiagnosis: async (params, signal) => {
+        const response = await api.get("/analytics/inventory-diagnosis", { params, signal });
+        return response.data;
+    },
+
     getTopProducts: async (range = "7d", limit = 10) => {
         const params = new URLSearchParams({ range, limit });
         const response = await api.get(`/analytics/top-products?${params.toString()}`);

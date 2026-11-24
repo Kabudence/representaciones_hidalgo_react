@@ -6,6 +6,9 @@ import productService from "../services/productService";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import HistoryModal from "../components/HistoryMOdal.jsx";
+import historialService from "../services/historialService";
+import { formatLimaDate, formatLimaTime } from "../utils/limaTime";
+import "../assets/styles/catalog-responsive.css";
 
 const Products = () => {
     const [products, setProducts] = useState([]);
@@ -19,6 +22,10 @@ const Products = () => {
     const [role, setRole] = useState(null);
     const [showHistoryModal, setShowHistoryModal] = useState(false);
     const [historyProductId, setHistoryProductId] = useState(null);
+    const [fromDate, setFromDate] = useState("");
+    const [toDate, setToDate] = useState("");
+    const [reportLoading, setReportLoading] = useState(false);
+    const [reportError, setReportError] = useState("");
 
 
     const itemsPerPage = 10;
@@ -97,7 +104,35 @@ const Products = () => {
         (currentPage - 1) * itemsPerPage,
         currentPage * itemsPerPage
     );
-    const exportToPDF = () => {
+    const exportToPDF = async (event) => {
+        event.preventDefault();
+        setReportError("");
+        if (!fromDate || !toDate || fromDate > toDate) {
+            setReportError("Indica un rango de fechas válido.");
+            return;
+        }
+
+        setReportLoading(true);
+        try {
+            const movements = await historialService.getProductMovements(fromDate, toDate);
+            const productsById = new Map(filteredProducts.map((product) => [String(product.id), product]));
+            const reportProducts = movements.flatMap((movement) => {
+                const product = productsById.get(String(movement.idprod));
+                return product ? [{ ...product, ...movement }] : [];
+            });
+            if (reportProducts.length === 0) {
+                setReportError("No hay movimientos para estos productos en el rango indicado.");
+                return;
+            }
+            saveProductReport(reportProducts);
+        } catch (error) {
+            setReportError(error.response?.data?.error || "No se pudo generar el reporte de productos.");
+        } finally {
+            setReportLoading(false);
+        }
+    };
+
+    const saveProductReport = (reportProducts) => {
         const doc = new jsPDF();
         const now = new Date();
         const pageWidth = doc.internal.pageSize.getWidth();
@@ -107,29 +142,33 @@ const Products = () => {
         doc.setFontSize(12);
         doc.text("Representaciones Hidalgo", 10, 10);
         doc.text("Av. América Norte", 10, 16);
-        doc.text(`Fecha: ${now.toLocaleDateString("es-PE")}`, pageWidth - rightMargin, 10, { align: "right" });
-        doc.text(`Hora: ${now.toLocaleTimeString("es-PE")}`, pageWidth - rightMargin, 15, { align: "right" });
+        doc.text(`Fecha: ${formatLimaDate(now)}`, pageWidth - rightMargin, 10, { align: "right" });
+        doc.text(`Hora Lima: ${formatLimaTime(now)}`, pageWidth - rightMargin, 15, { align: "right" });
 
         // Título centrado
         doc.setFontSize(14);
-        doc.text("Listado de Productos", pageWidth / 2, 30, { align: "center" });
+        doc.text("Movimientos de productos", pageWidth / 2, 28, { align: "center" });
+        doc.setFontSize(10);
+        doc.text(`${formatLimaDate(fromDate)} al ${formatLimaDate(toDate)}`, pageWidth / 2, 35, { align: "center" });
 
-        const tableColumn = ["ID", "Nombre", "Stock Inicial", "Stock Actual", "Precio Venta"];
+        const tableColumn = ["ID", "Nombre", "Compradas", "Vendidas", "Stock actual", "Costo actual"];
 
         let total = 0;
-        const tableRows = filteredProducts.map((product) => {
-            const valorNeto = (product.stock_actual || 0) * (product.precio_costo || 0);
+        const tableRows = reportProducts.map((product) => {
+            const cost = Number(product.precio_costo) || 0;
+            const valorNeto = Number(product.stock_actual || 0) * cost;
             total += valorNeto;
             return [
                 product.id,
                 product._nombreOriginal,
-                product.stock_inicial || 0,
+                product.compradas,
+                product.vendidas,
                 product.stock_actual || 0,
-                (product.precio_costo || 0).toFixed(2),
+                cost.toFixed(2),
             ];
         });
 
-        let finalY = 40; // Posición inicial de la tabla
+        let finalY = 43; // Posición inicial de la tabla
         doc.autoTable({
             startY: finalY,
             head: [tableColumn],
@@ -176,13 +215,13 @@ const Products = () => {
         doc.setTextColor(0, 0, 0);
 
         // Agregar el texto "Saldo total:" y el valor
-        doc.text("Saldo total:", rectX + 3, balanceY - 2, { align: "left" });
+        doc.text("Valor del stock actual:", rectX + 3, balanceY - 2, { align: "left" });
         doc.text(`S/. ${total.toFixed(2)}`, pageWidth - rightMargin - 3, balanceY - 2, { align: "right" });
 
         // Restaurar fuente normal si se requiere
         doc.setFont("helvetica", "normal");
 
-        doc.save("listado_productos.pdf");
+        doc.save(`productos_${fromDate}_${toDate}.pdf`);
     };
 
 
@@ -260,41 +299,41 @@ const Products = () => {
     }
 
     return (
-        <div style={styles.container}>
+        <div className="catalog-shell" style={styles.container}>
             {/* Encabezado con el título y botón Generar PDF */}
-            <div style={styles.header}>
-                <h1 style={styles.title}>Lista de Productos</h1>
-                <div>
-                    <button
-                        onClick={exportToPDF}
-                        style={{ ...styles.addButton, marginLeft: "10px" }}
-                    >
-                        Generar PDF
+            <div className="catalog-header" style={styles.header}>
+                <h1 className="catalog-title" style={styles.title}>Lista de Productos</h1>
+                <form className="catalog-report" onSubmit={exportToPDF}>
+                    <label>Desde<input type="date" value={fromDate} max={toDate || undefined} onChange={(event) => setFromDate(event.target.value)} required /></label>
+                    <label>Hasta<input type="date" value={toDate} min={fromDate || undefined} onChange={(event) => setToDate(event.target.value)} required /></label>
+                    <button type="submit" style={styles.addButton} disabled={reportLoading}>
+                        {reportLoading ? "Generando…" : "Generar PDF"}
                     </button>
-                </div>
+                    {reportError && <p className="catalog-report-error" role="status">{reportError}</p>}
+                </form>
             </div>
 
             {/* Barra de búsqueda con el botón Agregar Producto */}
-            <div style={styles.searchContainer}>
+            <div className="catalog-toolbar" style={styles.searchContainer}>
                 <input
                     type="text"
                     placeholder="Buscar producto..."
                     value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
                     style={styles.searchInput}
                 />
 
                 {role === "admin" && (
                     <button
                         onClick={() => handleOpenModal("Agregar")}
-                        style={{ ...styles.addButton, marginLeft: "10px" }}
+                        style={styles.addButton}
                     >
                         Agregar Producto
                     </button>
                 )}
             </div>
 
-            <table style={styles.table}>
+            <table className="catalog-table" style={styles.table}>
                 <thead>
                 {role === "admin" ? (
                     <tr style={styles.tableHeader}>
@@ -326,17 +365,17 @@ const Products = () => {
                 {paginatedProducts.map((product, index) =>
                     role === "admin" ? (
                         <tr key={product.id || `row-${index}`} style={styles.tableRow}>
-                            <td style={styles.tableCell}>{product.id}</td>
-                            <td style={styles.tableCell}>{product._nombreOriginal}</td>
-                            <td style={styles.tableCell}>{product.unidad_medida}</td>
-                            <td style={styles.tableCell}>{product.stock_inicial}</td>
-                            <td style={styles.tableCell}>{product.stock_actual}</td>
-                            <td style={styles.tableCell}>{product.stock_minimo}</td>
-                            <td style={styles.tableCell}>{product.precio_costo.toFixed(2)}</td>
-                            <td style={styles.tableCell}>{product.precio_venta.toFixed(2)}</td>
-                            <td style={styles.tableCell}>{product.modelo}</td>
-                            <td style={styles.tableCell}>{product.medida}</td>
-                            <td style={styles.tableCell}>
+                            <td data-label="ID" style={styles.tableCell}>{product.id}</td>
+                            <td data-label="Nombre" className="catalog-item-name" style={styles.tableCell}>{product._nombreOriginal}</td>
+                            <td data-label="Unidad" style={styles.tableCell}>{product.unidad_medida}</td>
+                            <td data-label="Stock inicial" style={styles.tableCell}>{product.stock_inicial}</td>
+                            <td data-label="Stock actual" style={styles.tableCell}>{product.stock_actual}</td>
+                            <td data-label="Stock mínimo" style={styles.tableCell}>{product.stock_minimo}</td>
+                            <td data-label="Precio costo" style={styles.tableCell}>{product.precio_costo.toFixed(2)}</td>
+                            <td data-label="Precio venta" style={styles.tableCell}>{product.precio_venta.toFixed(2)}</td>
+                            <td data-label="Modelo" style={styles.tableCell}>{product.modelo}</td>
+                            <td data-label="Medida" style={styles.tableCell}>{product.medida}</td>
+                            <td className="catalog-row-actions" style={styles.tableCell}>
                                 <button
                                     onClick={() => handleOpenModal("Editar", product)}
                                     style={styles.editButton}
@@ -360,11 +399,11 @@ const Products = () => {
                         </tr>
                     ) : (
                         <tr key={product.id || `row-${index}`} style={styles.tableRow}>
-                            <td style={styles.tableCell}>{product._nombreOriginal}</td>
-                            <td style={styles.tableCell}>{product.modelo}</td>
-                            <td style={styles.tableCell}>{product.medida}</td>
-                            <td style={styles.tableCell}>{product.stock_actual}</td>
-                            <td style={styles.tableCell}>{product.precio_venta.toFixed(2)}</td>
+                            <td data-label="Nombre" className="catalog-item-name" style={styles.tableCell}>{product._nombreOriginal}</td>
+                            <td data-label="Modelo" style={styles.tableCell}>{product.modelo}</td>
+                            <td data-label="Medida" style={styles.tableCell}>{product.medida}</td>
+                            <td data-label="Stock actual" style={styles.tableCell}>{product.stock_actual}</td>
+                            <td data-label="Precio venta" style={styles.tableCell}>{product.precio_venta.toFixed(2)}</td>
                         </tr>
                     )
                 )}
@@ -383,7 +422,7 @@ const Products = () => {
             )}
             {showModal && (
                 <div style={styles.modalOverlay}>
-                    <div style={styles.modal}>
+                    <div className="catalog-modal" style={styles.modal}>
                         <h2>{formType} Producto</h2>
                         <ProductForm
                             product={currentProduct}

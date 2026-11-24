@@ -2,6 +2,10 @@ import api from "./api";
 import Historial from "../models/Historial";
 
 const historialService = {
+    getProductMovements: async (fromDate, toDate) => {
+        const response = await api.get("/historial/reporte/productos", { params: { fromDate, toDate } });
+        return response.data.productos;
+    },
     getByProductId: async (idprod) => {
         const response = await api.get(`/historial/${idprod}`);
         return response.data.map(

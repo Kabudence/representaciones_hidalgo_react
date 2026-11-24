@@ -54,6 +54,7 @@ const Navbar = () => {
         { href: "/analiticas", label: "Analíticas" },
         { href: "/nota-venta", label: "Nota de venta" },
         { href: "/boletas", label: "Boletas" },
+        { href: "/evidencias-pago", label: "Evidencias de pago" },
     ];
 
     const mobileLinks = [

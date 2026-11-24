@@ -8,6 +8,7 @@ import moment from "moment-timezone";
 import { useNavigate } from "react-router-dom";
 import ShowUtilidadesComponent from "../components/ShowUtilidadesComponent"; // Asegúrate de tener este componente
 import ElementsByIdCab from "../components/ElementsByIdCab"; // Componente de ver detalles
+import { formatLimaDate, formatLimaTime } from "../utils/limaTime";
 
 function Ventas() {
     const [ventas, setVentas] = useState([]);
@@ -150,8 +151,8 @@ function Ventas() {
             doc.text("Av. América Norte", 10, 15);
 
             const now = new Date();
-            doc.text(`Fecha: ${now.toLocaleDateString("es-PE")}`, 250, 10);
-            doc.text(`Hora: ${now.toLocaleTimeString("es-PE")}`, 250, 15);
+            doc.text(`Fecha: ${formatLimaDate(now)}`, 250, 10);
+            doc.text(`Hora Lima: ${formatLimaTime(now)}`, 250, 15);
 
             doc.setFontSize(14);
             doc.text("Listado de Ventas", 148, 30, { align: "center" });
@@ -193,7 +194,7 @@ function Ventas() {
                 venta.num_docum || "N/A",
                 venta.ruc_cliente || "N/A",
                 venta.cliente || "N/A",
-                new Date(venta.fecha).toLocaleDateString("es-PE"),
+                venta.fecha ? formatLimaDate(venta.fecha) : "Sin fecha",
                 venta.tipo_movimiento || "N/A",
                 venta.tipo_venta || "N/A",
                 (parseFloat(venta.valor_de_venta) || 0).toFixed(2),

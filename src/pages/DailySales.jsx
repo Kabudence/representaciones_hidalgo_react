@@ -1,10 +1,55 @@
 // src/pages/DailySales.jsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import dailySalesService from "../services/dailySalesService";
+import employeeService from "../services/employeeService";
+import paymentEvidenceService from "../services/paymentEvidenceService";
 import api from "../services/api";
-import { FaSearch } from "react-icons/fa";
+import { FaCamera, FaSearch } from "react-icons/fa";
+import { formatLimaDate, formatLimaTimestamp } from "../utils/limaTime";
+import "../assets/styles/daily-sales-responsive.css";
+
+const SaleImagePreview = ({ photoId, payment = false, alt, style }) => {
+    const [imageUrl, setImageUrl] = useState("");
+    const [failed, setFailed] = useState(false);
+    const [attempt, setAttempt] = useState(0);
+
+    useEffect(() => {
+        const controller = new AbortController();
+        let url;
+        const loadImage = payment ? paymentEvidenceService.getEvidenceImage : dailySalesService.getPhotoImage;
+        loadImage(photoId, controller.signal).then((image) => {
+            if (controller.signal.aborted) return;
+            url = URL.createObjectURL(image);
+            setImageUrl(url);
+        }).catch(async (error) => {
+            if (controller.signal.aborted) return;
+            setFailed(true);
+            if (error.response?.status !== 503) return;
+            try {
+                const raw = error.response.data;
+                const payload = raw instanceof Blob ? JSON.parse(await raw.text()) : raw;
+                if (!controller.signal.aborted && payload?.code === "PHOTO_ARCHIVE_OFFLINE") {
+                    window.alert("Dile a Josue que prenda su computadora.");
+                }
+            } catch { return; }
+        });
+        return () => {
+            controller.abort();
+            if (url) URL.revokeObjectURL(url);
+        };
+    }, [photoId, payment, attempt]);
+
+    if (failed) return (
+        <div className="daily-image-status" role="status">
+            No se pudo abrir la foto.
+            <button type="button" className="daily-image-button" onClick={() => { setFailed(false); setImageUrl(""); setAttempt(attempt + 1); }}>Reintentar</button>
+        </div>
+    );
+    if (!imageUrl) return <p className="daily-image-status" role="status">Cargando foto…</p>;
+    return <img src={imageUrl} alt={alt} style={style} onError={() => setFailed(true)} />;
+};
 
 const DailySales = () => {
     // Estado para ventas diarias
@@ -25,9 +70,18 @@ const DailySales = () => {
     const [showModal, setShowModal] = useState(false);
     const [saleDetailItems, setSaleDetailItems] = useState([]);
     const [saleDetailPhotos, setSaleDetailPhotos] = useState([]);
-    const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
+    const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(-1);
+    const [selectedEvidenceId, setSelectedEvidenceId] = useState(null);
     const [isDetailLoading, setIsDetailLoading] = useState(false);
     const [detailError, setDetailError] = useState("");
+    const [paymentDetail, setPaymentDetail] = useState(null);
+    const [paymentDetailError, setPaymentDetailError] = useState(false);
+    const detailRequest = useRef(0);
+    const [saleToComplete, setSaleToComplete] = useState(null);
+    const [sellerOptions, setSellerOptions] = useState([]);
+    const [sellerId, setSellerId] = useState("");
+    const [completingSale, setCompletingSale] = useState(false);
+    const [completionError, setCompletionError] = useState("");
 
     // Estado para el historial de ventas
     const [historicalSales, setHistoricalSales] = useState([]);
@@ -87,21 +141,7 @@ const DailySales = () => {
         }
     };
 
-    const formatSaleDate = (fecha) => {
-        if (!fecha) return "Sin fecha";
-
-        const parsedDate = new Date(fecha);
-
-        if (Number.isNaN(parsedDate.getTime())) {
-            return String(fecha);
-        }
-
-        return parsedDate.toLocaleDateString("es-PE", {
-            day: "2-digit",
-            month: "2-digit",
-            year: "numeric",
-        });
-    };
+    const formatSaleDate = (fecha) => fecha ? formatLimaDate(fecha) : "Sin fecha";
 
     const formatAmount = (value) => {
         const parsedValue = Number(value);
@@ -110,13 +150,6 @@ const DailySales = () => {
 
     const canCompleteSale = (estado) => {
         return (estado || "").toUpperCase() === "EN PROCESO";
-    };
-
-    const buildPhotoSrc = (photoCode) => {
-        if (!photoCode) return "";
-        return String(photoCode).startsWith("data:image")
-            ? photoCode
-            : `data:image/jpeg;base64,${photoCode}`;
     };
 
     const getSaleIdCab = (venta) => venta?.idmov || venta?.idcab;
@@ -150,18 +183,24 @@ const DailySales = () => {
         }
 
         setSelectedSale(venta);
+        const requestId = ++detailRequest.current;
         setShowModal(true);
         setSaleDetailItems([]);
         setSaleDetailPhotos([]);
-        setSelectedPhotoIndex(0);
+        setSelectedPhotoIndex(-1);
+        setSelectedEvidenceId(null);
         setDetailError("");
+        setPaymentDetail(null);
+        setPaymentDetailError(false);
         setIsDetailLoading(true);
 
         try {
-            const [itemsResult, photosResult] = await Promise.allSettled([
+            const [itemsResult, photosResult, evidenceResult] = await Promise.allSettled([
                 fetchSaleDetailsByNumDoc(numDocum),
-                idcab ? dailySalesService.getPhotosByIdCab(idcab, 0, 100) : Promise.resolve([]),
+                idcab ? dailySalesService.getPhotosByIdCab(idcab, 0, 100, false) : Promise.resolve([]),
+                idcab ? paymentEvidenceService.getSaleDetail(idcab, false) : Promise.resolve(null),
             ]);
+            if (requestId !== detailRequest.current) return;
 
             if (itemsResult.status === "fulfilled") {
                 setSaleDetailItems(Array.isArray(itemsResult.value) ? itemsResult.value : []);
@@ -174,18 +213,24 @@ const DailySales = () => {
                 setSaleDetailPhotos(Array.isArray(photosResult.value) ? photosResult.value : []);
             } else {
                 console.error("Error al obtener fotos de la venta:", photosResult.reason);
+                setDetailError((message) => `${message} No se pudieron cargar las fotos de producto.`.trim());
             }
+
+            setPaymentDetail(evidenceResult.status === "fulfilled" ? evidenceResult.value : null);
+            setPaymentDetailError(evidenceResult.status === "rejected");
         } finally {
-            setIsDetailLoading(false);
+            if (requestId === detailRequest.current) setIsDetailLoading(false);
         }
     };
 
     const closeModal = () => {
+        detailRequest.current += 1;
         setShowModal(false);
         setSelectedSale(null);
         setSaleDetailItems([]);
         setSaleDetailPhotos([]);
-        setSelectedPhotoIndex(0);
+        setSelectedPhotoIndex(-1);
+        setSelectedEvidenceId(null);
         setDetailError("");
     };
 
@@ -390,11 +435,13 @@ const DailySales = () => {
         const statusUI = getStatusUI(selectedSale.estado);
         const { productCount, unitsCount } = getItemsSummary();
         const selectedPhoto = saleDetailPhotos[selectedPhotoIndex];
+        const paymentEvidences = paymentDetail?.evidencias || [];
+        const payments = new Map((paymentDetail?.pagos || []).map((payment) => [payment.idpago, payment]));
 
         return (
-            <div style={styles.detailOverlay} onClick={closeModal}>
-                <div style={styles.detailModal} onClick={(event) => event.stopPropagation()}>
-                    <div style={styles.detailHeader}>
+            <div className="daily-overlay" style={styles.detailOverlay} onClick={closeModal}>
+                <div className="daily-detail" role="dialog" aria-modal="true" aria-label="Detalle de venta" style={styles.detailModal} onClick={(event) => event.stopPropagation()}>
+                    <div className="daily-detail-header" style={styles.detailHeader}>
                         <div>
                             <span style={styles.detailEyebrow}>Detalle de venta</span>
                             <h2 style={styles.detailTitle}>
@@ -403,13 +450,14 @@ const DailySales = () => {
                             <p style={styles.detailSubtitle}>
                                 Fecha: {formatSaleDate(selectedSale.fecha)}
                             </p>
+                            <p style={styles.detailSubtitle}>Vendedor: {selectedSale.vendedor_nombre || "Sin asignar"}</p>
                         </div>
 
                         <div style={styles.detailHeaderActions}>
                             <span style={{ ...styles.statusBadge, ...statusUI }}>
                                 {selectedSale.estado || "N/A"}
                             </span>
-                            <button style={styles.detailCloseButton} onClick={closeModal}>
+                            <button type="button" aria-label="Cerrar detalle" style={styles.detailCloseButton} onClick={closeModal}>
                                 X
                             </button>
                         </div>
@@ -421,7 +469,7 @@ const DailySales = () => {
                         <>
                             {detailError && <p style={styles.detailError}>{detailError}</p>}
 
-                            <div style={styles.detailSummaryGrid}>
+                            <div className="daily-summary-grid" style={styles.detailSummaryGrid}>
                                 <div style={styles.detailSummaryCard}>
                                     <span style={styles.detailSummaryLabel}>Productos</span>
                                     <strong style={styles.detailSummaryValue}>{productCount}</strong>
@@ -480,7 +528,8 @@ const DailySales = () => {
                                                                     <button
                                                                         key={photo.id || `${item.iddet}-${photoIndex}`}
                                                                         type="button"
-                                                                        style={styles.productPhotoButton}
+                                                                        className="daily-image-button"
+                                                                        aria-label={`Foto ${photoIndex + 1} de ${item.nomproducto || "producto"}`}
                                                                         onClick={() => {
                                                                             const globalIndex = saleDetailPhotos.findIndex(
                                                                                 (registeredPhoto) => registeredPhoto.id === photo.id
@@ -488,11 +537,7 @@ const DailySales = () => {
                                                                             setSelectedPhotoIndex(globalIndex >= 0 ? globalIndex : 0);
                                                                         }}
                                                                     >
-                                                                        <img
-                                                                            src={buildPhotoSrc(photo.foto_codigo)}
-                                                                            alt={photo.nombre_producto || item.nomproducto || "Foto"}
-                                                                            style={styles.productInlinePhoto}
-                                                                        />
+                                                                        <FaCamera aria-hidden="true" /> {photoIndex + 1}
                                                                     </button>
                                                                 ))}
                                                             </div>
@@ -505,27 +550,22 @@ const DailySales = () => {
                                 )}
                             </section>
 
-                            {saleDetailPhotos.length > 0 && (
-                                <section style={styles.detailSection}>
+                            <section className="daily-photo-section" style={styles.detailSection} aria-label="Fotos de producto">
                                     <div style={styles.sectionTitleRow}>
-                                        <h3 style={styles.sectionTitle}>Fotos registradas</h3>
+                                        <h3 style={styles.sectionTitle}>Fotos de producto</h3>
                                         <span style={styles.sectionBadge}>{saleDetailPhotos.length} foto(s)</span>
                                     </div>
 
-                                    <div style={styles.photoWorkspace}>
-                                        <div style={styles.photoPreviewCard}>
-                                            <img
-                                                src={buildPhotoSrc(selectedPhoto?.foto_codigo)}
-                                                alt={selectedPhoto?.nombre_producto || "Foto de producto"}
-                                                style={styles.photoPreview}
-                                            />
+                                    {saleDetailPhotos.length ? <div className="daily-photo-workspace" style={styles.photoWorkspace}>
+                                        {selectedPhoto ? <div style={styles.photoPreviewCard}>
+                                            <SaleImagePreview key={selectedPhoto.id} photoId={selectedPhoto.id} alt={selectedPhoto.nombre_producto || "Foto de producto"} style={styles.photoPreview} />
                                             <div style={styles.photoDescription}>
                                                 <strong>{selectedPhoto?.nombre_producto || "Producto sin nombre"}</strong>
                                                 <span>Precio vendido: S/ {formatAmount(selectedPhoto?.precio_vendido)}</span>
                                                 <span>Cantidad: {formatAmount(selectedPhoto?.cantidad)}</span>
-                                                <span>Fecha: {selectedPhoto?.fecha || "Sin fecha"}</span>
+                                                <span>Fecha: {formatLimaTimestamp(selectedPhoto?.fecha)}</span>
                                             </div>
-                                        </div>
+                                        </div> : <p style={styles.emptyMessage}>Sin foto seleccionada.</p>}
 
                                         <div style={styles.photoThumbList}>
                                             {saleDetailPhotos.map((photo, index) => (
@@ -533,24 +573,49 @@ const DailySales = () => {
                                                     key={photo.id || index}
                                                     type="button"
                                                     onClick={() => setSelectedPhotoIndex(index)}
+                                                    aria-pressed={index === selectedPhotoIndex}
                                                     style={index === selectedPhotoIndex
                                                         ? styles.photoThumbButtonActive
                                                         : styles.photoThumbButton}
                                                 >
-                                                    <img
-                                                        src={buildPhotoSrc(photo.foto_codigo)}
-                                                        alt={photo.nombre_producto || "Foto"}
-                                                        style={styles.photoThumb}
-                                                    />
+                                                    <FaCamera aria-hidden="true" />
                                                     <span style={styles.photoThumbText}>
-                                                        {photo.nombre_producto || `Foto ${index + 1}`}
+                                                        {`Foto ${index + 1} · ${photo.nombre_producto || "Producto"}`}
                                                     </span>
                                                 </button>
                                             ))}
                                         </div>
-                                    </div>
-                                </section>
-                            )}
+                                    </div> : <p style={styles.emptyMessage}>Sin fotos de producto.</p>}
+                            </section>
+
+                            <section className="daily-photo-section" style={styles.detailSection} aria-label="Fotos de medios de pago">
+                                <div style={styles.sectionTitleRow}>
+                                    <h3 style={styles.sectionTitle}>Fotos de medios de pago</h3>
+                                    <span style={styles.sectionBadge}>{paymentEvidences.length} foto(s)</span>
+                                </div>
+                                {paymentDetailError ? <p style={styles.detailError}>No se pudieron cargar las evidencias de pago.</p>
+                                    : paymentEvidences.length === 0 ? <p style={styles.emptyMessage}>Sin evidencias de pago.</p>
+                                    : <div className="daily-evidence-grid">
+                                        {paymentEvidences.map((evidence) => {
+                                            const method = String(evidence.tipo_evidencia || "Comprobante").replaceAll("_", " ");
+                                            const payment = payments.get(evidence.idpago);
+                                            const isSelected = selectedEvidenceId === evidence.idevidencia;
+                                            return (
+                                                <figure key={evidence.idevidencia} className="daily-evidence">
+                                                    {isSelected && <SaleImagePreview photoId={evidence.idevidencia} payment alt={`Comprobante ${method}`} />}
+                                                    <figcaption>
+                                                        <strong>{method}{payment ? ` · S/ ${formatAmount(payment.monto)}` : ""}</strong>
+                                                        {evidence.descripcion && <span>{evidence.descripcion}</span>}
+                                                        <small>{formatLimaTimestamp(evidence.fecha)}</small>
+                                                        <button type="button" className="daily-image-button" aria-expanded={isSelected} onClick={() => setSelectedEvidenceId(isSelected ? null : evidence.idevidencia)}>
+                                                            <FaCamera aria-hidden="true" /> {isSelected ? "Ocultar foto" : `Ver foto de ${method}`}
+                                                        </button>
+                                                    </figcaption>
+                                                </figure>
+                                            );
+                                        })}
+                                    </div>}
+                            </section>
                         </>
                     )}
                 </div>
@@ -594,22 +659,27 @@ const DailySales = () => {
         }
     };
 
-    const handleCompleteSale = async (venta) => {
-        if (!venta || !venta.idmov) {
-            console.warn("No se recibió un idmov válido para completar la venta.");
-            return;
-        }
-
-        const vendedor = window.prompt(
-            "Ingrese el nombre (o DNI) de la persona que realizó la venta:"
-        );
-
-        if (!vendedor || !vendedor.trim()) {
-            return;
-        }
-
+    const openCompletion = async (venta) => {
+        if (!venta?.idmov) return;
+        setSaleToComplete(venta);
+        setSellerId("");
+        setCompletionError("");
+        setSellerOptions([]);
         try {
-            await dailySalesService.changeStateToComplete(venta.idmov, vendedor.trim());
+            setSellerOptions(await employeeService.getAll());
+        } catch {
+            setCompletionError("No se pudieron cargar los vendedores.");
+        }
+    };
+
+    const handleCompleteSale = async (event) => {
+        event.preventDefault();
+        if (!saleToComplete || !sellerId || completingSale) return;
+        setCompletingSale(true);
+        setCompletionError("");
+        try {
+            await dailySalesService.changeStateToComplete(saleToComplete.idmov, sellerId);
+            setSaleToComplete(null);
 
             if (isFilteredView) {
                 await loadMainSalesPage(1, activeFilters);
@@ -621,9 +691,9 @@ const DailySales = () => {
                 await loadHistoricalSales(historicalPage);
             }
         } catch (error) {
-            console.error("Error al completar la venta:", error);
-            const message = error?.response?.data?.error || "Error al completar la venta.";
-            alert(message);
+            setCompletionError(error?.response?.data?.error || "Error al completar la venta.");
+        } finally {
+            setCompletingSale(false);
         }
     };
 
@@ -701,10 +771,11 @@ const DailySales = () => {
 
     const renderSearchFilters = () => (
         <div style={styles.searchContainer}>
-            <div style={styles.searchFiltersRow}>
+            <div className="daily-filter-grid" style={styles.searchFiltersRow}>
                 <div style={styles.filterField}>
-                    <label style={styles.filterLabel}>Buscar por Estado</label>
+                    <label htmlFor="daily-sale-status" style={styles.filterLabel}>Buscar por Estado</label>
                     <select
+                        id="daily-sale-status"
                         value={historicalStatus}
                         onChange={(e) => setHistoricalStatus(e.target.value)}
                         style={styles.statusSelect}
@@ -717,8 +788,9 @@ const DailySales = () => {
                 </div>
 
                 <div style={styles.filterField}>
-                    <label style={styles.filterLabel}>Buscar por Número de Documento</label>
+                    <label htmlFor="daily-sale-document" style={styles.filterLabel}>Buscar por Número de Documento</label>
                     <input
+                        id="daily-sale-document"
                         type="text"
                         placeholder="Ej. N006 - 55945"
                         value={searchTerm}
@@ -776,6 +848,10 @@ const DailySales = () => {
                         <span style={styles.infoLabel}>Cliente</span>
                         <span style={styles.infoValue}>{venta.cliente || "N/A"}</span>
                     </div>
+                    <div style={styles.infoRow}>
+                        <span style={styles.infoLabel}>Vendedor</span>
+                        <span style={styles.infoValue}>{venta.vendedor_nombre || "Sin asignar"}</span>
+                    </div>
 
                     <div style={styles.infoRow}>
                         <span style={styles.infoLabel}>IGV</span>
@@ -812,7 +888,7 @@ const DailySales = () => {
                     {canCompleteSale(venta.estado) && (
                         <button
                             style={styles.secondaryActionButton}
-                            onClick={() => handleCompleteSale(venta)}
+                            onClick={() => openCompletion(venta)}
                         >
                             Marcar como completada
                         </button>
@@ -823,7 +899,7 @@ const DailySales = () => {
     };
 
     return (
-        <div style={styles.container}>
+        <div className="daily-sales" style={styles.container}>
             <h2 style={styles.title}>Ventas Diarias</h2>
             {role === "admin" && renderSearchFilters()}
             {isLoading ? (
@@ -895,6 +971,23 @@ const DailySales = () => {
             )}
 
             {renderSaleDetailsModal()}
+            {saleToComplete && (
+                <div className="daily-overlay" style={styles.detailOverlay}>
+                    <form className="daily-detail daily-seller-form" role="dialog" aria-modal="true" aria-label="Completar venta" style={styles.detailModal} onSubmit={handleCompleteSale}>
+                        <h2 style={styles.detailTitle}>Completar {saleToComplete.num_docum}</h2>
+                        <label htmlFor="daily-seller">Vendedor</label>
+                        <select id="daily-seller" style={styles.statusSelect} value={sellerId} onChange={(event) => setSellerId(event.target.value)} required disabled={completingSale}>
+                            <option value="">Seleccionar vendedor</option>
+                            {sellerOptions.map((seller) => (
+                                <option key={seller.idvend} value={seller.idvend}>{seller.nomvendedor} ({seller.idvend})</option>
+                            ))}
+                        </select>
+                        {completionError && <p role="alert" style={styles.detailError}>{completionError}</p>}
+                        <button type="submit" style={styles.primaryButton} disabled={!sellerId || completingSale}>Confirmar</button>
+                        <button type="button" style={styles.printButton} disabled={completingSale} onClick={() => setSaleToComplete(null)}>Volver</button>
+                    </form>
+                </div>
+            )}
         </div>
     );
 };
@@ -918,7 +1011,7 @@ const styles = {
     },
     cardList: {
         display: "grid",
-        gridTemplateColumns: "repeat(auto-fill, minmax(360px, 1fr))",
+        gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 340px), 1fr))",
         gap: "32px",
         alignItems: "start",
         marginTop: "18px",

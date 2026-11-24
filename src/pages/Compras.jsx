@@ -9,6 +9,7 @@ import "jspdf-autotable";
 import moment from "moment-timezone";
 import { useNavigate } from "react-router-dom";
 import "../assets/styles/compras-mobile.css";
+import { formatLimaDate, formatLimaTime } from "../utils/limaTime";
 
 const Compras = () => {
     const [compras, setCompras] = useState([]);
@@ -120,8 +121,8 @@ const Compras = () => {
             doc.text("Representaciones Hidalgo", 10, 10);
             doc.text("Av. América Norte", 10, 15);
             const now = new Date();
-            doc.text(`Fecha: ${now.toLocaleDateString("es-PE")}`, 250, 10);
-            doc.text(`Hora: ${now.toLocaleTimeString("es-PE")}`, 250, 15);
+            doc.text(`Fecha: ${formatLimaDate(now)}`, 250, 10);
+            doc.text(`Hora Lima: ${formatLimaTime(now)}`, 250, 15);
             doc.setFontSize(14);
             doc.text("Listado de Compras", 148, 30, { align: "center" });
             if (filters) {
@@ -152,7 +153,7 @@ const Compras = () => {
                 "Acciones"
             ];
             const tableRows = compras.map((compra) => [
-                new Date(compra.fecha).toLocaleDateString("es-PE"),
+                compra.fecha ? formatLimaDate(compra.fecha) : "Sin fecha",
                 compra.tipo_movimiento || "N/A",
                 compra.tipo_venta || "N/A",
                 compra.num_docum || "N/A",

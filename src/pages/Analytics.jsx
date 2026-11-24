@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { FaChevronLeft, FaChevronRight, FaExclamationTriangle } from "react-icons/fa";
 import analyticsService from "../services/analyticsService";
+import { formatLimaDate } from "../utils/limaTime";
 
 const PAYMENT_RANGES = [
     { value: "today", label: "Hoy" },
@@ -1077,6 +1079,120 @@ const LoadingBlock = () => <div style={styles.empty}>Cargando informacion...</di
 
 const EmptyBlock = ({ message = "No hay datos para mostrar." }) => <div style={styles.empty}>{message}</div>;
 
+const PAYMENT_WARNINGS = {
+    SIN_PAGO: "Sin pagos registrados",
+    FALTANTE: "Pago incompleto",
+    EXCEDENTE: "Pago excedido",
+};
+
+const PaymentSalesTable = ({ range, discrepanciesOnly = false }) => {
+    const [page, setPage] = useState(1);
+    const [data, setData] = useState(null);
+    const [error, setError] = useState("");
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const controller = new AbortController();
+        setLoading(true);
+        setError("");
+        analyticsService.getPaymentSales({ range, page, discrepanciesOnly, signal: controller.signal })
+            .then((result) => {
+                if (!controller.signal.aborted) setData(result);
+            })
+            .catch((requestError) => {
+                if (!controller.signal.aborted) setError(getErrorMessage(requestError));
+            })
+            .finally(() => {
+                if (!controller.signal.aborted) setLoading(false);
+            });
+        return () => controller.abort();
+    }, [range, page, discrepanciesOnly]);
+
+    if (loading) return <LoadingBlock />;
+    if (error) return <div role="alert" style={styles.error}>{error}</div>;
+    if (!data?.sales?.length) return <EmptyBlock message={discrepanciesOnly ? "No hay ventas con descuadre." : "No hay ventas en este periodo."} />;
+
+    const methods = discrepanciesOnly ? [] : data.methods;
+    const pageCount = Math.ceil(data.total / data.size);
+
+    return (
+        <>
+            <div aria-label={discrepanciesOnly ? "Ventas con pagos observados" : "Pagos por venta y medio"} tabIndex={0} role="region" style={styles.tableContainer}>
+                <table style={{ ...styles.table, minWidth: discrepanciesOnly ? "610px" : "850px" }}>
+                    <thead>
+                        <tr>
+                            <th scope="col" style={styles.th}>Venta</th>
+                            <th scope="col" style={styles.th}>Fecha</th>
+                            {!discrepanciesOnly && <th scope="col" style={styles.th}>Estado</th>}
+                            {methods.map((method) => <th key={method.id} scope="col" style={styles.th}>{method.name}</th>)}
+                            <th scope="col" style={styles.th}>Total venta</th>
+                            <th scope="col" style={styles.th}>Pagado</th>
+                            <th scope="col" style={styles.th}>Diferencia</th>
+                            <th scope="col" style={styles.th}>Observación</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {data.sales.map((sale) => {
+                            const warnings = [
+                                sale.estado !== "COMPLETADO" && !discrepanciesOnly ? "Venta en proceso" : null,
+                                PAYMENT_WARNINGS[sale.alerta_pago],
+                            ].filter(Boolean);
+                            const difference = Number(sale.diferencia);
+                            const gapLabel = difference > 0 ? "Faltan " : difference < 0 ? "Exceden " : "";
+                            return (
+                                <tr key={sale.idmov} style={warnings.length ? { backgroundColor: "#fff0e7" } : undefined}>
+                                    <th scope="row" style={styles.td}>{sale.num_docum}</th>
+                                    <td style={styles.td}>{formatLimaDate(sale.fecha)}</td>
+                                    {!discrepanciesOnly && <td style={styles.td}>{sale.estado}</td>}
+                                    {methods.map((method) => (
+                                        <td key={method.id} style={{ ...styles.td, whiteSpace: "nowrap" }}>
+                                            {sale.pagos_por_medio[method.id] == null ? "-" : formatCurrency(sale.pagos_por_medio[method.id])}
+                                        </td>
+                                    ))}
+                                    <td style={{ ...styles.td, whiteSpace: "nowrap" }}>{formatCurrency(sale.total_venta)}</td>
+                                    <td style={{ ...styles.td, whiteSpace: "nowrap" }}>{formatCurrency(sale.total_pagado)}</td>
+                                    <td style={styles.td}>{gapLabel}{formatCurrency(Math.abs(difference))}</td>
+                                    <td style={styles.td}>
+                                        {warnings.length ? <strong style={{ color: "#962b26" }}><FaExclamationTriangle aria-hidden="true" /> {warnings.join(" · ")}</strong> : "Cuadrado"}
+                                    </td>
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                </table>
+            </div>
+            <nav aria-label="Páginas del detalle de pagos" style={{ display: "flex", gap: "10px", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", marginTop: "12px" }}>
+                <span>{formatNumber(data.total)} venta(s) · Página {page} de {pageCount}</span>
+                {pageCount > 1 && (
+                    <div style={styles.buttonRow}>
+                        <button type="button" className="analytics-row-link" aria-label="Página anterior" disabled={page <= 1} onClick={() => setPage(page - 1)}><FaChevronLeft aria-hidden="true" /></button>
+                        <button type="button" className="analytics-row-link" aria-label="Página siguiente" disabled={page >= pageCount} onClick={() => setPage(page + 1)}><FaChevronRight aria-hidden="true" /></button>
+                    </div>
+                )}
+            </nav>
+        </>
+    );
+};
+
+const PaymentDiscrepancyNotice = ({ totals, range }) => {
+    const [expanded, setExpanded] = useState(false);
+    if (Number(totals.ventas_sin_pago_o_descuadradas_count || 0) <= 0) return null;
+
+    return (
+        <div style={styles.error}>
+            <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
+                <span>Hay {formatNumber(totals.ventas_sin_pago_o_descuadradas_count)} venta(s) sin pago o con pagos descuadrados por {formatCurrency(totals.monto_sin_pago_o_descuadrado)}.</span>
+                <button type="button" className="analytics-row-link" aria-expanded={expanded} aria-controls="payment-discrepancies" onClick={() => setExpanded(!expanded)}>
+                    {expanded ? "Ver menos" : "Ver más"}
+                </button>
+            </div>
+            {expanded && <div id="payment-discrepancies" style={{ marginTop: "12px", fontWeight: 400 }}>
+                <PaymentSalesTable range={range} discrepanciesOnly />
+            </div>}
+        </div>
+    );
+};
+
 const PaymentMethodCards = ({ data }) => {
     const rows = data || [];
     const maxAmount = Math.max(...rows.map((row) => Number(row.monto_total || 0)), 0);
@@ -1706,6 +1822,7 @@ const Analytics = () => {
             <div className="analytics-hero-actions">
                 <ActionButton variant="primary" onClick={() => setActiveView(VIEW_MODES.PAYMENT_DETAIL)}>Mas informacion de pagos</ActionButton>
                 <ActionButton onClick={() => setActiveView(VIEW_MODES.PRODUCTS)}>Analiticas de productos</ActionButton>
+                <ActionButton onClick={() => navigate("/diagnostico-inventario")}>Diagnóstico de inventario</ActionButton>
             </div>
         );
     };
@@ -1714,7 +1831,7 @@ const Analytics = () => {
     const heroSubtitle = activeView === VIEW_MODES.PRODUCTS
         ? "Productos mas vendidos, productos con mayor ganancia y comportamiento por mes en una vista enfocada."
         : activeView === VIEW_MODES.PAYMENT_DETAIL
-            ? "Detalle del periodo seleccionado por dia y por medio de pago."
+            ? "Pagos por documento y medio de pago en el periodo seleccionado."
             : "Resumen rapido de ventas, medios de pago y rendimiento de vendedores.";
 
     return (
@@ -1758,11 +1875,7 @@ const Analytics = () => {
                                     <>
                                         <SummaryStatBand totals={paymentTotals} />
 
-                                        {Number(paymentTotals.ventas_sin_pago_o_descuadradas_count || 0) > 0 && (
-                                            <div style={styles.error}>
-                                                Hay {formatNumber(paymentTotals.ventas_sin_pago_o_descuadradas_count)} venta(s) sin pago o con pagos descuadrados por {formatCurrency(paymentTotals.monto_sin_pago_o_descuadrado)}.
-                                            </div>
-                                        )}
+                                        <PaymentDiscrepancyNotice key={paymentRange} totals={paymentTotals} range={paymentRange} />
 
                                         <div className="analytics-summary-content-grid">
                                             <PaymentMethodSummaryList data={paymentSummary?.by_payment_method || []} />
@@ -1809,37 +1922,8 @@ const Analytics = () => {
                             )}
                         </SectionCard>
 
-                        <SectionCard title="Detalle diario por medio de pago" description="Cada fila representa cuanto se cobro por medio de pago en cada dia.">
-                            {loading.payment ? (
-                                <LoadingBlock />
-                            ) : (paymentSummary?.payment_by_day || []).length ? (
-                                <div style={styles.tableContainer}>
-                                    <table style={styles.table}>
-                                        <thead>
-                                            <tr>
-                                                <th style={styles.th}>Fecha</th>
-                                                <th style={styles.th}>Medio</th>
-                                                <th style={styles.th}>Ventas</th>
-                                                <th style={styles.th}>Pagos</th>
-                                                <th style={styles.th}>Monto</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {paymentSummary.payment_by_day.map((row, index) => (
-                                                <tr key={`${row.fecha}-${row.tipo_venta_id}-${index}`}>
-                                                    <td style={styles.td}>{formatDate(row.fecha)}</td>
-                                                    <td style={styles.td}><strong>{row.medio_pago}</strong></td>
-                                                    <td style={styles.td}>{formatNumber(row.ventas_count)}</td>
-                                                    <td style={styles.td}>{formatNumber(row.pagos_count)}</td>
-                                                    <td style={styles.td}><strong>{formatCurrency(row.monto_total)}</strong></td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            ) : (
-                                <EmptyBlock />
-                            )}
+                        <SectionCard title="Ventas por medio de pago" description="Ventas completadas y en proceso del periodo.">
+                            <PaymentSalesTable key={paymentRange} range={paymentRange} />
                         </SectionCard>
                     </div>
                 )}
